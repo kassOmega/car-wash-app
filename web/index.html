@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
+    <meta name="description" content="Car Wash Management App" />
+
+    <!-- iOS meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="car_wash_manager" />
+
+    <title>Car Wash Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- Firebase SDK - Use version 9 for compatibility -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+    <script>
+      // YOUR FIREBASE CONFIG
+      const firebaseConfig = {
+        apiKey: "AIzaSyAFA1aV5qiFMW_s2IlW7Zrxvr12FLzLeKI",
+        authDomain: "car-wash-management-app-6411d.firebaseapp.com",
+        projectId: "car-wash-management-app-6411d",
+        storageBucket: "car-wash-management-app-6411d.firebasestorage.app",
+        messagingSenderId: "603095949351",
+        appId: "1:603095949351:web:dca06a65e2d21494836e02",
+        measurementId: "G-34CQSWF7ED",
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      console.log("Firebase initialized successfully!");
+    </script>
+  </head>
+  <body>
+    <script src="main.dart.js" type="application/javascript"></script>
+  </body>
+</html>

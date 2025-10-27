@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "603095949351",
+    "project_id": "car-wash-management-app-6411d",
+    "storage_bucket": "car-wash-management-app-6411d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603095949351:android:809c41a7897ecf4c836e02",
+        "android_client_info": {
+          "package_name": "com.kassBusiness.carwashmanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvC1AnJXCZQcm1R-2SEgelWFneqabe3TI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
