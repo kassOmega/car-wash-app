@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/car_wash.dart';
 import '../models/customer.dart';
 import '../models/expense.dart';
+import '../models/price.dart';
 import '../models/user_role.dart'; // Make sure to import AppUser
 import '../models/washer.dart';
 
@@ -277,5 +278,61 @@ class FirebaseService {
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => Expense.fromMap(doc.data())).toList());
+  }
+
+  // prices
+  // Add to your FirebaseService class
+
+// Price Operations
+  Future<void> addPrice(Price price) async {
+    await _firestore
+        .collection('prices')
+        .doc(price.vehicleType)
+        .set(price.toMap());
+  }
+
+  Future<void> updatePrice(Price price) async {
+    await _firestore
+        .collection('prices')
+        .doc(price.vehicleType)
+        .update(price.toMap());
+  }
+
+  Stream<List<Price>> getPrices() {
+    return _firestore
+        .collection('prices')
+        .orderBy('vehicleType')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Price.fromMap(doc.data())).toList());
+  }
+
+  Future<Price?> getPriceByVehicleType(String vehicleType) async {
+    final doc = await _firestore.collection('prices').doc(vehicleType).get();
+    if (doc.exists) {
+      return Price.fromMap(doc.data()!);
+    }
+    return null;
+  }
+
+// Initialize default prices (call this once in your app)
+  Future<void> initializeDefaultPrices() async {
+    final defaultPrices = [
+      Price(vehicleType: 'Motorcycle', amount: 200),
+      Price(vehicleType: 'Bajaj', amount: 400),
+      Price(vehicleType: 'Car', amount: 500),
+      Price(vehicleType: 'Isuzu', amount: 1000),
+      Price(vehicleType: 'Sino', amount: 1500),
+      Price(vehicleType: 'Lowbed', amount: 2400),
+      Price(vehicleType: 'Bajaj-Body', amount: 300),
+      Price(vehicleType: 'Car-Body', amount: 400),
+      Price(vehicleType: 'Isuzu-Body', amount: 600),
+      Price(vehicleType: 'Sino-Body', amount: 750),
+      Price(vehicleType: 'Sino-Trailer', amount: 500),
+    ];
+
+    for (final price in defaultPrices) {
+      await addPrice(price);
+    }
   }
 }

@@ -7,6 +7,7 @@ import '../services/firebase_service.dart';
 import 'car_wash_entry.dart';
 import 'customer_management.dart';
 import 'expense_tracking.dart';
+import 'prices_list_screen.dart';
 import 'reports.dart';
 import 'user_registration.dart';
 import 'washer_management.dart';
@@ -153,6 +154,11 @@ class Dashboard extends StatelessWidget {
       menuItems.add(_buildMenuCard('Washers', Icons.person, Colors.orange, () {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => WasherManagement()));
+      }));
+      menuItems.add(
+          _buildMenuCard('Manage Prices', Icons.attach_money, Colors.amber, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => PricesListScreen()));
       }));
     }
 

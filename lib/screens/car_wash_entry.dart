@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../models/car_wash.dart';
 import '../models/customer.dart';
+import '../models/price.dart';
 import '../models/washer.dart';
 import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
+import 'prices_list_screen.dart';
 
 class CarWashEntry extends StatefulWidget {
   @override
@@ -21,9 +23,29 @@ class _CarWashEntryState extends State<CarWashEntry> {
   String? _selectedCustomerId;
   String? _selectedWasherId;
   String _vehicleType = 'Car';
+  List<Price> _prices = [];
 
   List<Customer> _customers = [];
   List<Washer> _washers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize default vehicle type amount
+    _updateAmountForVehicleType(_vehicleType);
+  }
+
+  Future<void> _updateAmountForVehicleType(String vehicleType) async {
+    final firebaseService =
+        Provider.of<FirebaseService>(context, listen: false);
+    final price = await firebaseService.getPriceByVehicleType(vehicleType);
+
+    if (price != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _amountController.text = price.amount.toStringAsFixed(0);
+      });
+    }
+  }
 
   Future<void> _submitCarWash() async {
     if (_formKey.currentState!.validate() && _selectedWasherId != null) {
@@ -50,15 +72,17 @@ class _CarWashEntryState extends State<CarWashEntry> {
       try {
         await firebaseService.addCarWash(carWash);
 
-        // Clear form
+        // Clear form but keep vehicle type
         _amountController.clear();
         _plateNumberController.clear();
         _notesController.clear();
         setState(() {
           _selectedCustomerId = null;
           _selectedWasherId = null;
-          _vehicleType = 'Car';
         });
+
+        // Update amount for current vehicle type after clear
+        _updateAmountForVehicleType(_vehicleType);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -94,6 +118,8 @@ class _CarWashEntryState extends State<CarWashEntry> {
       _selectedWasherId = null;
       _vehicleType = 'Car';
     });
+    // Update amount for default vehicle type
+    _updateAmountForVehicleType(_vehicleType);
   }
 
   @override
@@ -112,6 +138,17 @@ class _CarWashEntryState extends State<CarWashEntry> {
             onPressed: _clearForm,
             tooltip: 'Clear Form',
           ),
+          if (authProvider.isOwner || authProvider.isCashier)
+            IconButton(
+              icon: Icon(Icons.attach_money),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PricesListScreen()),
+                );
+              },
+              tooltip: 'Manage Prices',
+            ),
         ],
       ),
       body: Padding(
@@ -133,7 +170,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                           border: OutlineInputBorder(),
                         ),
                         items: [],
-                        onChanged: (value) {}, // Required parameter added
+                        onChanged: (value) {},
                       );
                     }
 
@@ -159,7 +196,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
                         }).toList(),
                       ],
                       onChanged: (value) {
-                        // Required parameter added
                         setState(() {
                           _selectedCustomerId = value;
                         });
@@ -170,7 +206,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                 SizedBox(height: 16),
               ],
 
-              // Washer Selection - FIXED VERSION
+              // Washer Selection
               StreamBuilder<List<Washer>>(
                 stream: firebaseService.getWashers(),
                 builder: (context, snapshot) {
@@ -183,7 +219,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                         errorText: 'Please select a washer',
                       ),
                       items: [],
-                      onChanged: (value) {}, // Required parameter added
+                      onChanged: (value) {},
                     );
                   }
 
@@ -202,7 +238,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
                     );
                   }
 
-                  // Remove duplicate washers by ID to prevent the error
                   final uniqueWashers = _washers
                       .fold<Map<String, Washer>>({}, (map, washer) {
                         if (!map.containsKey(washer.id)) {
@@ -213,7 +248,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
                       .values
                       .toList();
 
-                  // Ensure selected value exists in the list
                   if (_selectedWasherId != null &&
                       !uniqueWashers
                           .any((washer) => washer.id == _selectedWasherId)) {
@@ -254,7 +288,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
                       }).toList(),
                     ],
                     onChanged: (value) {
-                      // Required parameter added
                       if (value != null) {
                         setState(() {
                           _selectedWasherId = value;
@@ -268,26 +301,47 @@ class _CarWashEntryState extends State<CarWashEntry> {
               ),
               SizedBox(height: 16),
 
-              // Vehicle Type
-              DropdownButtonFormField<String>(
-                value: _vehicleType,
-                decoration: InputDecoration(
-                  labelText: 'Vehicle Type *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.directions_car),
-                ),
-                items: ['Car', 'SUV', 'Truck', 'Motorcycle', 'Van', 'Bus']
-                    .map((type) {
-                  return DropdownMenuItem<String>(
-                    value: type,
-                    child: Text(type),
+              // Vehicle Type with auto-price
+              StreamBuilder<List<Price>>(
+                stream: firebaseService.getPrices(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    _prices = snapshot.data!;
+                  }
+
+                  return DropdownButtonFormField<String>(
+                    value: _vehicleType,
+                    decoration: InputDecoration(
+                      labelText: 'Vehicle Type *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.directions_car),
+                    ),
+                    items: _prices.map((price) {
+                      return DropdownMenuItem<String>(
+                        value: price.vehicleType,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(price.vehicleType),
+                            Text(
+                              'TZS ${price.amount.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _vehicleType = value!;
+                      });
+                      // Update amount when vehicle type changes
+                      _updateAmountForVehicleType(value!);
+                    },
                   );
-                }).toList(),
-                onChanged: (value) {
-                  // Required parameter added
-                  setState(() {
-                    _vehicleType = value!;
-                  });
                 },
               ),
               SizedBox(height: 16),
@@ -304,13 +358,21 @@ class _CarWashEntryState extends State<CarWashEntry> {
               ),
               SizedBox(height: 16),
 
-              // Amount
+              // Amount (auto-filled but editable)
               TextFormField(
                 controller: _amountController,
                 decoration: InputDecoration(
                   labelText: 'Amount *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.attach_money),
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.refresh),
+                    onPressed: () {
+                      // Reset to default price for current vehicle type
+                      _updateAmountForVehicleType(_vehicleType);
+                    },
+                    tooltip: 'Reset to default price',
+                  ),
                 ),
                 keyboardType: TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
