@@ -22,33 +22,6 @@ class FirebaseService {
     );
   }
 
-  // NEW METHOD: Sign Up with Role and User Details
-  Future<UserCredential> signUpWithRole({
-    required String email,
-    required String password,
-    required String role,
-    required String name,
-    String? phone,
-  }) async {
-    final userCredential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-
-    // Create user profile with all details
-    final appUser = AppUser(
-      uid: userCredential.user!.uid,
-      email: email,
-      role: role,
-      name: name,
-      phone: phone,
-      createdAt: DateTime.now(),
-    );
-
-    await createUserProfile(appUser);
-    return userCredential;
-  }
-
 // Add this method to your FirebaseService and call it once
   Future<void> fixMissingUidFields() async {
     try {
@@ -90,6 +63,32 @@ class FirebaseService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
+    return userCredential;
+  }
+
+  Future<UserCredential> signUpWithRole({
+    required String email,
+    required String password,
+    required String role,
+    required String name,
+    String? phone,
+  }) async {
+    final userCredential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    // Create user profile with all details
+    final appUser = AppUser(
+      uid: userCredential.user!.uid,
+      email: email,
+      role: role,
+      name: name,
+      phone: phone,
+      createdAt: DateTime.now(),
+    );
+
+    await createUserProfile(appUser);
     return userCredential;
   }
 
