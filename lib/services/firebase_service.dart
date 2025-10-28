@@ -139,18 +139,23 @@ class FirebaseService {
             snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
   }
 
-  // Alternative: Get Car Washes by Washer with Date Range
   Stream<List<CarWash>> getCarWashesByWasherAndDateRange(
       String washerId, DateTime start, DateTime end) {
     return _firestore
         .collection('car_washes')
         .where('washerId', isEqualTo: washerId)
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
-        .orderBy('date', descending: true)
+        .orderBy('date', descending: true) // Use single field ordering
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
+        .map((snapshot) {
+      // Filter by date manually in memory
+      final allCarWashes =
+          snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList();
+
+      return allCarWashes.where((carWash) {
+        return carWash.date.isAfter(start.subtract(Duration(seconds: 1))) &&
+            carWash.date.isBefore(end.add(Duration(days: 1)));
+      }).toList();
+    });
   }
 
   // Keep your existing method for backward compatibility
@@ -179,11 +184,18 @@ class FirebaseService {
   Stream<List<CarWash>> getCarWashesByDateRange(DateTime start, DateTime end) {
     return _firestore
         .collection('car_washes')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .orderBy('date', descending: true) // Single field ordering
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
+        .map((snapshot) {
+      // Filter by date manually in memory
+      final allCarWashes =
+          snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList();
+
+      return allCarWashes.where((carWash) {
+        return carWash.date.isAfter(start.subtract(Duration(seconds: 1))) &&
+            carWash.date.isBefore(end.add(Duration(days: 1)));
+      }).toList();
+    });
   }
 
 // Car Washes by Washer with Date Range

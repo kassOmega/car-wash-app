@@ -15,6 +15,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
   DateTimeRange? _selectedDateRange;
   String? _selectedWasherId;
   List<Washer> _allWashers = [];
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     if (picked != null && picked != _selectedDateRange) {
       setState(() {
         _selectedDateRange = picked;
+        _errorMessage = null; // Clear error when changing date range
       });
     }
   }
@@ -89,6 +91,9 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                           if (snapshot.hasData) {
                             _allWashers = snapshot.data!;
                           }
+                          if (snapshot.hasError) {
+                            print('Error loading washers: ${snapshot.error}');
+                          }
                           return _buildWasherDropdown();
                         },
                       ),
@@ -98,6 +103,29 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               ),
             ),
           ),
+          // Error Message
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Card(
+                color: Colors.red[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.error, color: Colors.red),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           // Reports List
           Expanded(
             child: _buildReportsContent(firebaseService),
@@ -156,6 +184,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       onChanged: (value) {
         setState(() {
           _selectedWasherId = value;
+          _errorMessage = null; // Clear error when changing washer
         });
       },
     );
@@ -166,11 +195,9 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       return Center(child: Text('Please select a date range'));
     }
 
-    // FIX: Proper date range handling for single day
     final startDate = _selectedDateRange!.start;
     final endDate = _selectedDateRange!.end;
 
-    // For single day selection, set end date to end of the day
     final adjustedEndDate = DateTime(
       endDate.year,
       endDate.month,
@@ -180,33 +207,86 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       59,
     );
 
+    print('=== DEBUG: Querying Firestore ===');
+    print('Start Date: $startDate');
+    print('End Date: $adjustedEndDate');
+    print('Selected Washer ID: $_selectedWasherId');
+    print('========================');
+
     return StreamBuilder<List<CarWash>>(
       stream: _selectedWasherId != null
           ? firebaseService.getCarWashesByWasherAndDateRange(
               _selectedWasherId!,
               startDate,
-              adjustedEndDate, // Use adjusted end date
+              adjustedEndDate,
             )
           : firebaseService.getCarWashesByDateRange(
               startDate,
-              adjustedEndDate, // Use adjusted end date
+              adjustedEndDate,
             ),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-
+        print('=== DEBUG: StreamBuilder State ===');
+        print('Connection State: ${snapshot.connectionState}');
+        print('Has Data: ${snapshot.hasData}');
+        print('Has Error: ${snapshot.hasError}');
         if (snapshot.hasError) {
+          print('Stream Error: ${snapshot.error}');
+          print('Error StackTrace: ${snapshot.stackTrace}');
+        }
+        if (snapshot.hasData) {
+          print('Data Length: ${snapshot.data!.length}');
+        }
+        print('========================');
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error, size: 64, color: Colors.red),
+                CircularProgressIndicator(),
                 SizedBox(height: 16),
-                Text('Error loading reports'),
+                Text('Loading reports...'),
+              ],
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          final error = snapshot.error.toString();
+          print('Setting error message: $error');
+
+          // Set the error message for display
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _errorMessage = 'Error: $error';
+              });
+            }
+          });
+
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red),
+                SizedBox(height: 16),
+                Text(
+                  'Error loading reports',
+                  style: TextStyle(fontSize: 18, color: Colors.red),
+                ),
                 SizedBox(height: 8),
+                Text(
+                  'Please check the console for details',
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () => setState(() {}),
+                  onPressed: () {
+                    setState(() {
+                      _errorMessage = null;
+                    });
+                  },
                   child: Text('Retry'),
                 ),
               ],
@@ -215,14 +295,6 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         }
 
         final carWashes = snapshot.data ?? [];
-
-        // Debug information
-        print('=== DEBUG: Date Range Report ===');
-        print('Start Date: $startDate');
-        print('End Date: $adjustedEndDate');
-        print('Total car washes found: ${carWashes.length}');
-        print('Selected Washer ID: $_selectedWasherId');
-        print('========================');
 
         if (_selectedWasherId != null) {
           return _buildSingleWasherReport(carWashes, firebaseService);
@@ -233,6 +305,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     );
   }
 
+  // ... rest of your methods (_buildSingleWasherReport, _buildAllWashersReport, etc.)
+  // Keep the existing methods for building the report UI
   Widget _buildSingleWasherReport(
       List<CarWash> carWashes, FirebaseService firebaseService) {
     if (carWashes.isEmpty) {
@@ -244,6 +318,19 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       builder: (context, washerSnapshot) {
         if (washerSnapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
+        }
+
+        if (washerSnapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 64, color: Colors.red),
+                SizedBox(height: 16),
+                Text('Error loading washer details'),
+              ],
+            ),
+          );
         }
 
         final washers = washerSnapshot.data ?? [];
@@ -274,14 +361,20 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      washer.name,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Container(
+                      width: double.infinity,
+                      child: Text(
+                        washer.name,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 8),
                     Text(
@@ -292,31 +385,43 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildStatCard(
-                          'Total Revenue',
-                          '\$${totalRevenue.toStringAsFixed(2)}',
-                          Colors.green,
-                        ),
-                        _buildStatCard(
-                          'Washer Commission',
-                          '\$${washerCommission.toStringAsFixed(2)}',
-                          Colors.orange,
-                        ),
-                        _buildStatCard(
-                          'Owner Revenue',
-                          '\$${ownerRevenue.toStringAsFixed(2)}',
-                          Colors.blue,
-                        ),
-                      ],
+                    Container(
+                      constraints: BoxConstraints(
+                        minHeight: 60,
+                        maxHeight: 80,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              'Total',
+                              '\$${totalRevenue.toStringAsFixed(2)}',
+                              Colors.green,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Commission',
+                              '\$${washerCommission.toStringAsFixed(2)}',
+                              Colors.orange,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Owner',
+                              '\$${ownerRevenue.toStringAsFixed(2)}',
+                              Colors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            // Car Washes List
             Expanded(
               child: ListView.builder(
                 itemCount: carWashes.length,
@@ -471,28 +576,35 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           carWash.vehicleType,
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (carWash.plateNumber != null && carWash.plateNumber!.isNotEmpty)
-              Text(
-                'Plate: ${carWash.plateNumber}',
-                style: TextStyle(fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-              ),
-            Text(
-              DateFormat('MMM dd, HH:mm').format(carWash.date),
-              style: TextStyle(fontSize: 11),
+        subtitle: Container(
+          height: 40, // Fixed height for subtitle area
+          child: SingleChildScrollView(
+            scrollDirection: Axis.vertical,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (carWash.plateNumber != null &&
+                    carWash.plateNumber!.isNotEmpty)
+                  Text(
+                    'Plate: ${carWash.plateNumber}',
+                    style: TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                Text(
+                  DateFormat('MMM dd, HH:mm').format(carWash.date),
+                  style: TextStyle(fontSize: 11),
+                ),
+                if (carWash.notes != null && carWash.notes!.isNotEmpty)
+                  Text(
+                    'Notes: ${carWash.notes!}',
+                    style: TextStyle(fontSize: 10),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+              ],
             ),
-            if (carWash.notes != null && carWash.notes!.isNotEmpty)
-              Text(
-                'Notes: ${carWash.notes!}',
-                style: TextStyle(fontSize: 10),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-          ],
+          ),
         ),
         trailing: Text(
           '\$${carWash.amount.toStringAsFixed(2)}',
@@ -507,23 +619,33 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
   }
 
   Widget _buildStatCard(String title, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          title,
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-          textAlign: TextAlign.center,
-        ),
-      ],
+          SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ],
+      ),
     );
   }
 
@@ -569,7 +691,6 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
   }
 }
 
-// Helper class for washer reports
 class WasherReport {
   final Washer washer;
   final List<CarWash> carWashes;

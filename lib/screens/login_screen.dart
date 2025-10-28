@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+      if (mounted) setState(() => _isLoading = true);
 
       try {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -41,12 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
       }
 
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
