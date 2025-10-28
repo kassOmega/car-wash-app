@@ -8,8 +8,6 @@ import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 
 class CarWashEntry extends StatefulWidget {
-  const CarWashEntry({super.key});
-
   @override
   _CarWashEntryState createState() => _CarWashEntryState();
 }
@@ -17,35 +15,15 @@ class CarWashEntry extends StatefulWidget {
 class _CarWashEntryState extends State<CarWashEntry> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
+  final _plateNumberController = TextEditingController();
+  final _notesController = TextEditingController();
 
   String? _selectedCustomerId;
   String? _selectedWasherId;
   String _vehicleType = 'Car';
-  String _notes = '';
 
   List<Customer> _customers = [];
   List<Washer> _washers = [];
-
-  // Stream subscriptions
-  late final Stream<List<Customer>> _customerStream;
-  late final Stream<List<Washer>> _washerStream;
-
-  @override
-  void initState() {
-    super.initState();
-    final firebaseService =
-        Provider.of<FirebaseService>(context, listen: false);
-
-    // Initialize streams for customers and washers
-    _customerStream = firebaseService.getCustomers();
-    _washerStream = firebaseService.getWashers();
-  }
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
-  }
 
   Future<void> _submitCarWash() async {
     if (_formKey.currentState!.validate() && _selectedWasherId != null) {
@@ -54,7 +32,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       final amount = double.tryParse(_amountController.text) ?? 0.0;
-      final currentUserId = authProvider.user?.uid;
 
       final carWash = CarWash(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -63,8 +40,11 @@ class _CarWashEntryState extends State<CarWashEntry> {
         vehicleType: _vehicleType,
         amount: amount,
         date: DateTime.now(),
-        notes: _notes.isNotEmpty ? _notes : null,
-        recordedBy: currentUserId,
+        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        recordedBy: authProvider.user?.email ?? authProvider.appUser?.name,
+        plateNumber: _plateNumberController.text.isNotEmpty
+            ? _plateNumberController.text
+            : null,
       );
 
       try {
@@ -72,188 +52,344 @@ class _CarWashEntryState extends State<CarWashEntry> {
 
         // Clear form
         _amountController.clear();
+        _plateNumberController.clear();
+        _notesController.clear();
         setState(() {
           _selectedCustomerId = null;
-          _selectedWasherId = _washers.isNotEmpty ? _washers.first.id : null;
+          _selectedWasherId = null;
           _vehicleType = 'Car';
-          _notes = '';
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Car Wash recorded successfully!')),
+          SnackBar(
+            content: Text('Car wash recorded successfully!'),
+            backgroundColor: Colors.green,
+          ),
         );
       } catch (e) {
-        print('Error recording car wash: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to record car wash: $e')),
+          SnackBar(
+            content: Text('Error recording car wash: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  void _clearForm() {
+    _formKey.currentState?.reset();
+    _amountController.clear();
+    _plateNumberController.clear();
+    _notesController.clear();
+    setState(() {
+      _selectedCustomerId = null;
+      _selectedWasherId = null;
+      _vehicleType = 'Car';
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final firebaseService = Provider.of<FirebaseService>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Record Car Wash'),
+        title: Text('Record Car Wash'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.clear),
+            onPressed: _clearForm,
+            tooltip: 'Clear Form',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
             children: [
-              // --- Customer Selection ---
-              StreamBuilder<List<Customer>>(
-                stream: _customerStream,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: Text('Loading Customers...'));
-                  }
+              // Customer Selection (Owners and Cashiers only)
+              if (authProvider.isOwner || authProvider.isCashier) ...[
+                StreamBuilder<List<Customer>>(
+                  stream: firebaseService.getCustomers(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return DropdownButtonFormField<String>(
+                        value: null,
+                        decoration: InputDecoration(
+                          labelText: 'Loading customers...',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [],
+                        onChanged: (value) {}, // Required parameter added
+                      );
+                    }
 
-                  _customers = snapshot.data ?? [];
+                    _customers = snapshot.data ?? [];
 
-                  return DropdownButtonFormField<String?>(
-                    value: _selectedCustomerId,
-                    decoration: const InputDecoration(
-                      labelText: 'Customer (Optional)',
-                      prefixIcon: Icon(Icons.person, color: Colors.teal),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('Walk-in Customer')),
-                      ..._customers.map((c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Text('${c.name} (${c.phone})'),
-                          )),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedCustomerId = value;
-                      });
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
+                    return DropdownButtonFormField<String>(
+                      value: _selectedCustomerId,
+                      decoration: InputDecoration(
+                        labelText: 'Customer (Optional)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('No Customer - Walk-in'),
+                        ),
+                        ..._customers.map((customer) {
+                          return DropdownMenuItem<String>(
+                            value: customer.id,
+                            child: Text(customer.name),
+                          );
+                        }).toList(),
+                      ],
+                      onChanged: (value) {
+                        // Required parameter added
+                        setState(() {
+                          _selectedCustomerId = value;
+                        });
+                      },
+                    );
+                  },
+                ),
+                SizedBox(height: 16),
+              ],
 
-              // --- Washer Selection ---
+              // Washer Selection - FIXED VERSION
               StreamBuilder<List<Washer>>(
-                stream: _washerStream,
+                stream: firebaseService.getWashers(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: Text('Loading Washers...'));
+                    return DropdownButtonFormField<String>(
+                      value: null,
+                      decoration: InputDecoration(
+                        labelText: 'Loading washers...',
+                        border: OutlineInputBorder(),
+                        errorText: 'Please select a washer',
+                      ),
+                      items: [],
+                      onChanged: (value) {}, // Required parameter added
+                    );
                   }
 
-                  _washers =
-                      snapshot.data?.where((w) => w.isActive).toList() ?? [];
+                  _washers = snapshot.data ?? [];
 
-                  // Set default selected washer if not set and list is available
-                  if (_selectedWasherId == null && _washers.isNotEmpty) {
-                    _selectedWasherId = _washers.first.id;
+                  if (_washers.isEmpty) {
+                    return Card(
+                      color: Colors.orange[50],
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          'No washers available. Please add washers first.',
+                          style: TextStyle(color: Colors.orange[800]),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Remove duplicate washers by ID to prevent the error
+                  final uniqueWashers = _washers
+                      .fold<Map<String, Washer>>({}, (map, washer) {
+                        if (!map.containsKey(washer.id)) {
+                          map[washer.id] = washer;
+                        }
+                        return map;
+                      })
+                      .values
+                      .toList();
+
+                  // Ensure selected value exists in the list
+                  if (_selectedWasherId != null &&
+                      !uniqueWashers
+                          .any((washer) => washer.id == _selectedWasherId)) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      setState(() {
+                        _selectedWasherId = null;
+                      });
+                    });
                   }
 
                   return DropdownButtonFormField<String>(
                     value: _selectedWasherId,
-                    decoration: const InputDecoration(
-                      labelText: 'Washer (Required)',
-                      prefixIcon:
-                          Icon(Icons.cleaning_services, color: Colors.orange),
+                    decoration: InputDecoration(
+                      labelText: 'Washer *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.local_car_wash),
+                      errorText: _selectedWasherId == null
+                          ? 'Please select a washer'
+                          : null,
                     ),
-                    items: _washers
-                        .map((w) => DropdownMenuItem(
-                              value: w.id,
-                              child: Text(
-                                  '${w.name} (${w.percentage.toStringAsFixed(0)}% Commission)'),
-                            ))
-                        .toList(),
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: null,
+                        enabled: false,
+                        child: Text('Select a washer',
+                            style: TextStyle(color: Colors.grey)),
+                      ),
+                      ...uniqueWashers.map((washer) {
+                        return DropdownMenuItem<String>(
+                          value: washer.id,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(washer.name),
+                              Text(
+                                'Commission: ${washer.percentage}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
                     onChanged: (value) {
-                      setState(() {
-                        _selectedWasherId = value;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Please select a washer';
+                      // Required parameter added
+                      if (value != null) {
+                        setState(() {
+                          _selectedWasherId = value;
+                        });
                       }
-                      return null;
                     },
+                    validator: (value) =>
+                        value == null ? 'Please select a washer' : null,
                   );
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
-              // --- Vehicle Type Selection ---
+              // Vehicle Type
               DropdownButtonFormField<String>(
                 value: _vehicleType,
-                decoration: const InputDecoration(
-                  labelText: 'Vehicle Type',
-                  prefixIcon: Icon(Icons.local_shipping, color: Colors.blue),
+                decoration: InputDecoration(
+                  labelText: 'Vehicle Type *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.directions_car),
                 ),
-                items: <String>['Car', 'Truck', 'Van', 'Motorcycle', 'Other']
-                    .map<DropdownMenuItem<String>>((String value) {
+                items: ['Car', 'SUV', 'Truck', 'Motorcycle', 'Van', 'Bus']
+                    .map((type) {
                   return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
+                    value: type,
+                    child: Text(type),
                   );
                 }).toList(),
-                onChanged: (String? newValue) {
+                onChanged: (value) {
+                  // Required parameter added
                   setState(() {
-                    _vehicleType = newValue!;
+                    _vehicleType = value!;
                   });
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
-              // --- Amount Entry ---
+              // Plate Number Field
+              TextFormField(
+                controller: _plateNumberController,
+                decoration: InputDecoration(
+                  labelText: 'Plate Number (Optional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.confirmation_number),
+                ),
+                textCapitalization: TextCapitalization.characters,
+              ),
+              SizedBox(height: 16),
+
+              // Amount
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Amount (\$)',
-                  prefixIcon: Icon(Icons.attach_money, color: Colors.green),
+                decoration: InputDecoration(
+                  labelText: 'Amount *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money),
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter amount';
                   }
-                  if (double.tryParse(value) == null) {
+                  final amount = double.tryParse(value);
+                  if (amount == null) {
                     return 'Please enter valid amount';
+                  }
+                  if (amount <= 0) {
+                    return 'Amount must be greater than 0';
                   }
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
 
-              // --- Notes ---
+              // Notes
               TextFormField(
-                decoration:
-                    const InputDecoration(labelText: 'Notes (Optional)'),
-                maxLines: 2,
-                onChanged: (value) {
-                  _notes = value;
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // --- Submit Button ---
-              ElevatedButton(
-                onPressed: _submitCarWash,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                controller: _notesController,
+                decoration: InputDecoration(
+                  labelText: 'Notes (Optional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.note),
                 ),
-                child: const Text('Record Car Wash'),
+                maxLines: 3,
+              ),
+              SizedBox(height: 24),
+
+              // Submit Button
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _submitCarWash,
+                      child: Text(
+                        'Record Car Wash',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Quick Add Another Button
+              SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: _submitCarWash,
+                child: Text('Save and Add Another'),
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                ),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _plateNumberController.dispose();
+    _notesController.dispose();
+    super.dispose();
   }
 }

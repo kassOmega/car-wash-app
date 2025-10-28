@@ -6,24 +6,14 @@ import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 
 class CustomerManagement extends StatefulWidget {
-  const CustomerManagement({super.key});
-
   @override
   _CustomerManagementState createState() => _CustomerManagementState();
 }
 
 class _CustomerManagementState extends State<CustomerManagement> {
-  // Controllers and state for the form
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   String _selectedType = 'Regular';
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
 
   Future<void> _addCustomer() async {
     if (_nameController.text.isNotEmpty && _phoneController.text.isNotEmpty) {
@@ -38,95 +28,15 @@ class _CustomerManagementState extends State<CustomerManagement> {
         registrationDate: DateTime.now(),
       );
 
-      try {
-        await firebaseService.addCustomer(customer);
+      await firebaseService.addCustomer(customer);
 
-        _nameController.clear();
-        _phoneController.clear();
-        _selectedType = 'Regular'; // Reset type
+      _nameController.clear();
+      _phoneController.clear();
 
-        // Close the dialog after successful add
-        Navigator.of(context).pop();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Customer added successfully!')),
-        );
-      } catch (e) {
-        print('Error adding customer: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to add customer: $e')),
-        );
-      }
-    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter customer name and phone.')),
+        SnackBar(content: Text('Customer added successfully!')),
       );
     }
-  }
-
-  // Dialog to show the Add form
-  void _showCustomerForm() {
-    // Reset state for the form before showing
-    _nameController.clear();
-    _phoneController.clear();
-    _selectedType = 'Regular';
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Add New Customer'),
-          content: SingleChildScrollView(
-            child: StatefulBuilder(
-              builder: (context, setDialogState) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Name'),
-                    ),
-                    TextField(
-                      controller: _phoneController,
-                      decoration: const InputDecoration(labelText: 'Phone'),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      decoration:
-                          const InputDecoration(labelText: 'Customer Type'),
-                      value: _selectedType,
-                      items: <String>['Regular', 'VIP', 'Company']
-                          .map<DropdownMenuItem<String>>((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setDialogState(() {
-                          _selectedType = newValue!;
-                        });
-                      },
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: _addCustomer,
-              child: const Text('Add Customer'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -134,66 +44,111 @@ class _CustomerManagementState extends State<CustomerManagement> {
     final firebaseService = Provider.of<FirebaseService>(context);
     final authProvider = Provider.of<AuthProvider>(context);
 
-    // Only Owners/Cashiers can access this
     if (!authProvider.isOwner && !authProvider.isCashier) {
-      return const Center(
-          child: Text('Access Denied. Owner/Cashier permission required.'));
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Access Denied'),
+          backgroundColor: Colors.red,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Text('You do not have permission to access this feature.'),
+        ),
+      );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Customer Management'),
-        backgroundColor: Colors.teal,
+        title: Text('Customer Management'),
+        backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'View and register new customers.',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text('Add New Customer',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 16),
+                    TextField(
+                      controller: _nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextField(
+                      controller: _phoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Phone',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedType,
+                      decoration: InputDecoration(
+                        labelText: 'Customer Type',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: ['Regular', 'VIP', 'Corporate'].map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedType = value!;
+                        });
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _addCustomer,
+                      child: Text('Add Customer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             Expanded(
               child: StreamBuilder<List<Customer>>(
                 stream: firebaseService.getCustomers(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                    return Center(child: CircularProgressIndicator());
                   }
 
                   final customers = snapshot.data ?? [];
-
-                  if (customers.isEmpty) {
-                    return const Center(
-                        child: Text('No customers registered yet.'));
-                  }
 
                   return ListView.builder(
                     itemCount: customers.length,
                     itemBuilder: (context, index) {
                       final customer = customers[index];
                       return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        elevation: 2,
+                        margin: EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
-                          leading: const Icon(Icons.people,
-                              color: Colors.teal, size: 30),
-                          title: Text(customer.name,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          leading: Icon(Icons.people, color: Colors.green),
+                          title: Text(customer.name),
                           subtitle: Text(
                               '${customer.phone} • ${customer.customerType}'),
                           trailing: Text(
                             customer.registrationDate.toString().split(' ')[0],
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12),
+                            style: TextStyle(color: Colors.grey),
                           ),
                         ),
                       );
@@ -204,12 +159,6 @@ class _CustomerManagementState extends State<CustomerManagement> {
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCustomerForm,
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
       ),
     );
   }

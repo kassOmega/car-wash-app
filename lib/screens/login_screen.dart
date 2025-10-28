@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
-
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -59,35 +57,35 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24),
             child: Card(
               elevation: 8,
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(24),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.local_car_wash,
                         size: 64,
                         color: Colors.blue,
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       Text(
                         _isSignUp ? 'Create Account' : 'Car Wash Manager',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24),
                       if (_isSignUp) ...[
                         TextFormField(
                           controller: _nameController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Full Name',
                             prefixIcon: Icon(Icons.person),
                             border: OutlineInputBorder(),
@@ -99,11 +97,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                       ],
                       TextFormField(
                         controller: _emailController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Email',
                           prefixIcon: Icon(Icons.email),
                           border: OutlineInputBorder(),
@@ -119,10 +117,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       TextFormField(
                         controller: _passwordController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Password',
                           prefixIcon: Icon(Icons.lock),
                           border: OutlineInputBorder(),
@@ -139,24 +137,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
                       if (_isSignUp) ...[
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         TextFormField(
                           controller: _phoneController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Phone (Optional)',
                             prefixIcon: Icon(Icons.phone),
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.phone,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedRole,
-                          decoration: const InputDecoration(
+                          value: _selectedRole,
+                          decoration: InputDecoration(
                             labelText: 'Role',
                             border: OutlineInputBorder(),
                           ),
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                                 value: 'owner', child: Text('Owner')),
                             DropdownMenuItem(
@@ -171,23 +169,23 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                       ],
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24),
                       if (_isLoading)
-                        const CircularProgressIndicator()
+                        CircularProgressIndicator()
                       else
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: _submit,
+                            child: Text(_isSignUp ? 'Sign Up' : 'Sign In'),
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: EdgeInsets.symmetric(vertical: 16),
                               backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
                             ),
-                            child: Text(_isSignUp ? 'Sign Up' : 'Sign In'),
                           ),
                         ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       TextButton(
                         onPressed: () {
                           setState(() {
@@ -198,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           _isSignUp
                               ? 'Already have an account? Sign In'
                               : 'Don\'t have an account? Sign Up',
-                          style: const TextStyle(color: Colors.blue),
+                          style: TextStyle(color: Colors.blue),
                         ),
                       ),
                     ],

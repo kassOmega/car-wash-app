@@ -9,6 +9,7 @@ class CarWash {
   final DateTime date;
   final String? notes;
   final String? recordedBy;
+  final String? plateNumber; // NEW FIELD
 
   CarWash({
     required this.id,
@@ -19,6 +20,7 @@ class CarWash {
     required this.date,
     this.notes,
     this.recordedBy,
+    this.plateNumber, // NEW FIELD
   });
 
   Map<String, dynamic> toMap() {
@@ -31,20 +33,35 @@ class CarWash {
       'date': Timestamp.fromDate(date),
       'notes': notes,
       'recordedBy': recordedBy,
+      'plateNumber': plateNumber, // NEW FIELD
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
 
-  static CarWash fromMap(Map<String, dynamic> map) {
-    return CarWash(
-      id: map['id'],
-      customerId: map['customerId'],
-      washerId: map['washerId'],
-      vehicleType: map['vehicleType'],
-      amount: (map['amount'] as num).toDouble(),
-      date: (map['date'] as Timestamp).toDate(),
-      notes: map['notes'],
-      recordedBy: map['recordedBy'],
-    );
+  factory CarWash.fromMap(Map<String, dynamic> map) {
+    try {
+      return CarWash(
+        id: map['id']?.toString() ?? '',
+        customerId: map['customerId']?.toString(),
+        washerId: map['washerId']?.toString() ?? '',
+        vehicleType: map['vehicleType']?.toString() ?? 'Car',
+        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+        date: (map['date'] is Timestamp)
+            ? (map['date'] as Timestamp).toDate()
+            : DateTime.now(),
+        notes: map['notes']?.toString(),
+        recordedBy: map['recordedBy']?.toString(),
+        plateNumber: map['plateNumber']?.toString(), // NEW FIELD
+      );
+    } catch (e) {
+      print('Error parsing CarWash: $e');
+      return CarWash(
+        id: map['id']?.toString() ?? 'error',
+        washerId: map['washerId']?.toString() ?? '',
+        vehicleType: 'Car',
+        amount: 0.0,
+        date: DateTime.now(),
+      );
+    }
   }
 }

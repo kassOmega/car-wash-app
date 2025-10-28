@@ -8,7 +8,6 @@ class AuthProvider with ChangeNotifier {
   final FirebaseService _firebaseService;
   User? _user;
   AppUser? _appUser;
-  bool _isProfileLoading = false; // New loading state
 
   AuthProvider(this._firebaseService) {
     _firebaseService.authStateChanges.listen((user) {
@@ -17,7 +16,6 @@ class AuthProvider with ChangeNotifier {
         _loadUserProfile();
       } else {
         _appUser = null;
-        _isProfileLoading = false; // Reset when logged out
       }
       notifyListeners();
     });
@@ -26,23 +24,19 @@ class AuthProvider with ChangeNotifier {
   User? get user => _user;
   AppUser? get appUser => _appUser;
   bool get isAuthenticated => _user != null;
-
-  // New getter for the loading state
-  bool get isProfileLoading => _isProfileLoading;
-
   bool get isOwner => _appUser?.isOwner ?? false;
   bool get isCashier => _appUser?.isCashier ?? false;
   bool get isWasher => _appUser?.isWasher ?? false;
 
   Future<void> _loadUserProfile() async {
     if (_user != null) {
-      _isProfileLoading = true; // Start loading
-      notifyListeners();
-
-      _appUser = await _firebaseService.getUserProfile(_user!.uid);
-
-      _isProfileLoading = false; // End loading
-      notifyListeners();
+      try {
+        _appUser = await _firebaseService.getUserProfile(_user!.uid);
+        print('Loaded user profile: ${_appUser?.toMap()}'); // Debug
+        notifyListeners();
+      } catch (e) {
+        print('Error loading user profile: $e');
+      }
     }
   }
 
@@ -60,14 +54,19 @@ class AuthProvider with ChangeNotifier {
       name: name,
       phone: phone,
     );
-    // After sign up, the authStateChanges listener above will trigger _loadUserProfile()
+    if (_user != null) {
+      await _loadUserProfile();
+    }
   }
 
   Future<void> signIn(String email, String password) async {
-    await _firebaseService.signIn(
-      email,
-      password,
-    );
-    // After sign in, the authStateChanges listener above will trigger _loadUserProfile()
+    await _firebaseService.signIn(email, password);
+    if (_user != null) {
+      await _loadUserProfile();
+    }
+  }
+
+  Future<void> signOut() async {
+    await _firebaseService.signOut();
   }
 }

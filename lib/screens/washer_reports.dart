@@ -1,82 +1,508 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/car_wash.dart';
 import '../models/washer.dart';
 import '../services/firebase_service.dart';
 
-class WasherReports extends StatefulWidget {
-  final Washer washer;
-
-  const WasherReports({super.key, required this.washer});
-
+class WasherReportsScreen extends StatefulWidget {
   @override
-  _WasherReportsState createState() => _WasherReportsState();
+  _WasherReportsScreenState createState() => _WasherReportsScreenState();
 }
 
-class _WasherReportsState extends State<WasherReports> {
-  String _selectedPeriod = 'Daily';
+class _WasherReportsScreenState extends State<WasherReportsScreen> {
+  DateTimeRange? _selectedDateRange;
+  String? _selectedWasherId;
+  List<Washer> _allWashers = [];
 
-  // --- Report Calculation Logic ---
-
-  Map<String, dynamic> _calculateReport(List<CarWash> carWashes) {
-    final now = DateTime.now();
-    List<CarWash> filteredCarWashes;
-
-    switch (_selectedPeriod) {
-      case 'Daily':
-        final today = DateTime(now.year, now.month, now.day);
-        filteredCarWashes = carWashes.where((wash) {
-          final washDate =
-              DateTime(wash.date.year, wash.date.month, wash.date.day);
-          return washDate == today;
-        }).toList();
-        break;
-      case 'Weekly':
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        filteredCarWashes = carWashes.where((wash) {
-          // Filter by date AND by the specific washer ID
-          return wash.date.isAfter(startOfWeek);
-        }).toList();
-        break;
-      case 'Monthly':
-        final startOfMonth = DateTime(now.year, now.month, 1);
-        filteredCarWashes = carWashes.where((wash) {
-          return wash.date.isAfter(startOfMonth);
-        }).toList();
-        break;
-      default:
-        filteredCarWashes = carWashes;
-    }
-
-    final totalRevenue =
-        filteredCarWashes.fold(0.0, (sum, wash) => sum + wash.amount);
-
-    // Calculate total earnings based on the washer's commission percentage
-    final totalEarnings = totalRevenue * (widget.washer.percentage / 100);
-
-    return {
-      'totalRevenue': totalRevenue,
-      'totalEarnings': totalEarnings,
-      'vehicleCount': filteredCarWashes.length,
-    };
+  @override
+  void initState() {
+    super.initState();
+    // Set default to last 7 days
+    final endDate = DateTime.now();
+    final startDate = endDate.subtract(Duration(days: 7));
+    _selectedDateRange = DateTimeRange(start: startDate, end: endDate);
   }
 
-  // --- UI Builder Methods ---
+  Future<void> _selectDateRange(BuildContext context) async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: _selectedDateRange,
+    );
+    if (picked != null && picked != _selectedDateRange) {
+      setState(() {
+        _selectedDateRange = picked;
+      });
+    }
+  }
 
-  Widget _buildPeriodButton(String period) {
-    return ElevatedButton(
-      onPressed: () {
-        setState(() {
-          _selectedPeriod = period;
-        });
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor:
-            _selectedPeriod == period ? Colors.purple : Colors.grey,
+  @override
+  Widget build(BuildContext context) {
+    final firebaseService = Provider.of<FirebaseService>(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Washer Reports'),
+        backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      child: Text(period),
+      body: Column(
+        children: [
+          // Filters Section
+          Container(
+            height: 200,
+            child: SingleChildScrollView(
+              child: Card(
+                margin: EdgeInsets.all(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Date Range Selector
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.calendar_today,
+                            color: Colors.blue, size: 20),
+                        title: Text(
+                          'Date Range',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                        subtitle: _selectedDateRange == null
+                            ? Text('Select date range',
+                                style: TextStyle(fontSize: 12))
+                            : Text(
+                                '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                        trailing: Icon(Icons.arrow_drop_down, size: 20),
+                        onTap: () => _selectDateRange(context),
+                      ),
+                      Divider(height: 20),
+                      // Washer Filter
+                      StreamBuilder<List<Washer>>(
+                        stream: firebaseService.getWashers(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            _allWashers = snapshot.data!;
+                          }
+                          return _buildWasherDropdown();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Reports List
+          Expanded(
+            child: _buildReportsContent(firebaseService),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWasherDropdown() {
+    final uniqueWashers = _allWashers
+        .fold<Map<String, Washer>>({}, (map, washer) {
+          if (!map.containsKey(washer.id)) {
+            map[washer.id] = washer;
+          }
+          return map;
+        })
+        .values
+        .toList();
+
+    if (_selectedWasherId != null &&
+        !uniqueWashers.any((washer) => washer.id == _selectedWasherId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedWasherId = null;
+        });
+      });
+    }
+
+    return DropdownButtonFormField<String>(
+      value: _selectedWasherId,
+      decoration: InputDecoration(
+        labelText: 'Filter by Washer',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        isDense: true,
+      ),
+      isExpanded: true,
+      style: TextStyle(fontSize: 14),
+      items: [
+        DropdownMenuItem<String>(
+          value: null,
+          child: Text('All Washers', style: TextStyle(color: Colors.grey[600])),
+        ),
+        ...uniqueWashers.map((washer) {
+          return DropdownMenuItem<String>(
+            value: washer.id,
+            child: Text(
+              washer.name,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 14),
+            ),
+          );
+        }).toList(),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _selectedWasherId = value;
+        });
+      },
+    );
+  }
+
+  Widget _buildReportsContent(FirebaseService firebaseService) {
+    if (_selectedDateRange == null) {
+      return Center(child: Text('Please select a date range'));
+    }
+
+    // FIX: Proper date range handling for single day
+    final startDate = _selectedDateRange!.start;
+    final endDate = _selectedDateRange!.end;
+
+    // For single day selection, set end date to end of the day
+    final adjustedEndDate = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+    );
+
+    return StreamBuilder<List<CarWash>>(
+      stream: _selectedWasherId != null
+          ? firebaseService.getCarWashesByWasherAndDateRange(
+              _selectedWasherId!,
+              startDate,
+              adjustedEndDate, // Use adjusted end date
+            )
+          : firebaseService.getCarWashesByDateRange(
+              startDate,
+              adjustedEndDate, // Use adjusted end date
+            ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 64, color: Colors.red),
+                SizedBox(height: 16),
+                Text('Error loading reports'),
+                SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () => setState(() {}),
+                  child: Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final carWashes = snapshot.data ?? [];
+
+        // Debug information
+        print('=== DEBUG: Date Range Report ===');
+        print('Start Date: $startDate');
+        print('End Date: $adjustedEndDate');
+        print('Total car washes found: ${carWashes.length}');
+        print('Selected Washer ID: $_selectedWasherId');
+        print('========================');
+
+        if (_selectedWasherId != null) {
+          return _buildSingleWasherReport(carWashes, firebaseService);
+        } else {
+          return _buildAllWashersReport(carWashes, firebaseService);
+        }
+      },
+    );
+  }
+
+  Widget _buildSingleWasherReport(
+      List<CarWash> carWashes, FirebaseService firebaseService) {
+    if (carWashes.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return StreamBuilder<List<Washer>>(
+      stream: firebaseService.getWashers(),
+      builder: (context, washerSnapshot) {
+        if (washerSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        final washers = washerSnapshot.data ?? [];
+        final washer = washers.firstWhere(
+          (w) => w.id == _selectedWasherId,
+          orElse: () => Washer(
+            id: '',
+            name: 'Unknown Washer',
+            phone: '',
+            percentage: 0,
+            isActive: false,
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        // Calculate totals
+        final totalRevenue =
+            carWashes.fold(0.0, (sum, wash) => sum + wash.amount);
+        final washerCommission = totalRevenue * (washer.percentage / 100);
+        final ownerRevenue = totalRevenue - washerCommission;
+
+        return Column(
+          children: [
+            // Summary Card
+            Card(
+              margin: EdgeInsets.all(16),
+              color: Colors.blue[50],
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Text(
+                      washer.name,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '${carWashes.length} vehicles washed',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatCard(
+                          'Total Revenue',
+                          '\$${totalRevenue.toStringAsFixed(2)}',
+                          Colors.green,
+                        ),
+                        _buildStatCard(
+                          'Washer Commission',
+                          '\$${washerCommission.toStringAsFixed(2)}',
+                          Colors.orange,
+                        ),
+                        _buildStatCard(
+                          'Owner Revenue',
+                          '\$${ownerRevenue.toStringAsFixed(2)}',
+                          Colors.blue,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Car Washes List
+            Expanded(
+              child: ListView.builder(
+                itemCount: carWashes.length,
+                itemBuilder: (context, index) {
+                  final carWash = carWashes[index];
+                  return _buildCarWashItem(carWash);
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAllWashersReport(
+      List<CarWash> carWashes, FirebaseService firebaseService) {
+    if (carWashes.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return StreamBuilder<List<Washer>>(
+      stream: firebaseService.getWashers(),
+      builder: (context, washerSnapshot) {
+        if (washerSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        final washers = washerSnapshot.data ?? [];
+
+        // Group car washes by washer
+        final Map<String, List<CarWash>> washerGroups = {};
+        for (final carWash in carWashes) {
+          washerGroups.putIfAbsent(carWash.washerId, () => []);
+          washerGroups[carWash.washerId]!.add(carWash);
+        }
+
+        // Calculate totals for each washer
+        final List<WasherReport> washerReports = [];
+        washerGroups.forEach((washerId, washes) {
+          final washer = washers.firstWhere(
+            (w) => w.id == washerId,
+            orElse: () => Washer(
+              id: washerId,
+              name: 'Unknown Washer',
+              phone: '',
+              percentage: 0,
+              isActive: false,
+              createdAt: DateTime.now(),
+            ),
+          );
+
+          final totalRevenue =
+              washes.fold(0.0, (sum, wash) => sum + wash.amount);
+          final commission = totalRevenue * (washer.percentage / 100);
+
+          washerReports.add(WasherReport(
+            washer: washer,
+            carWashes: washes,
+            totalRevenue: totalRevenue,
+            commission: commission,
+          ));
+        });
+
+        // Sort by total revenue (descending)
+        washerReports.sort((a, b) => b.totalRevenue.compareTo(a.totalRevenue));
+
+        return ListView.builder(
+          itemCount: washerReports.length,
+          itemBuilder: (context, index) {
+            final report = washerReports[index];
+            return _buildWasherReportCard(report);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildWasherReportCard(WasherReport report) {
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.symmetric(horizontal: 12),
+        leading: CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.blue,
+          child: Text(
+            report.washer.name.isNotEmpty
+                ? report.washer.name[0].toUpperCase()
+                : '?',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        title: Text(
+          report.washer.name,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          '${report.carWashes.length} vehicles • \$${report.totalRevenue.toStringAsFixed(2)}',
+          style: TextStyle(fontSize: 12),
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Container(
+          width: 60,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '\$${report.commission.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: Colors.orange,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                'Commission',
+                style: TextStyle(fontSize: 9, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        children: [
+          Divider(height: 1),
+          ...report.carWashes
+              .map((carWash) => _buildCarWashItem(carWash))
+              .toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCarWashItem(CarWash carWash) {
+    return Container(
+      height: 70,
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Icon(
+          _getVehicleIcon(carWash.vehicleType),
+          color: Colors.blue,
+          size: 20,
+        ),
+        title: Text(
+          carWash.vehicleType,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (carWash.plateNumber != null && carWash.plateNumber!.isNotEmpty)
+              Text(
+                'Plate: ${carWash.plateNumber}',
+                style: TextStyle(fontSize: 11),
+                overflow: TextOverflow.ellipsis,
+              ),
+            Text(
+              DateFormat('MMM dd, HH:mm').format(carWash.date),
+              style: TextStyle(fontSize: 11),
+            ),
+            if (carWash.notes != null && carWash.notes!.isNotEmpty)
+              Text(
+                'Notes: ${carWash.notes!}',
+                style: TextStyle(fontSize: 10),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+          ],
+        ),
+        trailing: Text(
+          '\$${carWash.amount.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.green,
+            fontSize: 14,
+          ),
+        ),
+      ),
     );
   }
 
@@ -86,103 +512,74 @@ class _WasherReportsState extends State<WasherReports> {
         Text(
           value,
           style: TextStyle(
-              fontSize: 18, fontWeight: FontWeight.bold, color: color),
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
-        Text(title, style: const TextStyle(fontSize: 12)),
+        SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final firebaseService = Provider.of<FirebaseService>(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.washer.name}\'s Report'),
-        backgroundColor: Colors.purple,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildPeriodButton('Daily'),
-                    _buildPeriodButton('Weekly'),
-                    _buildPeriodButton('Monthly'),
-                  ],
-                ),
-              ),
+            Icon(Icons.local_car_wash, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'No car washes found',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
-            // StreamBuilder fetches all washes for this specific washer
-            Expanded(
-              child: StreamBuilder<List<CarWash>>(
-                stream: firebaseService.getCarWashesByWasher(widget.washer.id),
-                builder: (context, carWashSnapshot) {
-                  if (carWashSnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final carWashes = carWashSnapshot.data ?? [];
-                  final report = _calculateReport(carWashes);
-
-                  return Column(
-                    children: [
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$_selectedPeriod Performance',
-                                style: const TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                              const Divider(),
-                              Text(
-                                  'Commission Rate: ${widget.washer.percentage.toStringAsFixed(1)}%',
-                                  style: const TextStyle(
-                                      fontStyle: FontStyle.italic)),
-                              const SizedBox(height: 16),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildStatCard('Vehicles',
-                                      '${report['vehicleCount']}', Colors.blue),
-                                  _buildStatCard(
-                                      'Revenue',
-                                      '\$${report['totalRevenue'].toStringAsFixed(2)}',
-                                      Colors.green),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              // Display Washer's calculated earnings prominently
-                              _buildStatCard(
-                                  'Total Earnings',
-                                  '\$${report['totalEarnings'].toStringAsFixed(2)}',
-                                  Colors.orange),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+            SizedBox(height: 8),
+            Text(
+              'Try selecting a different date range or washer',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
       ),
     );
   }
+
+  IconData _getVehicleIcon(String vehicleType) {
+    switch (vehicleType.toLowerCase()) {
+      case 'car':
+        return Icons.directions_car;
+      case 'suv':
+        return Icons.airport_shuttle;
+      case 'truck':
+        return Icons.local_shipping;
+      case 'motorcycle':
+        return Icons.motorcycle;
+      default:
+        return Icons.directions_car;
+    }
+  }
+}
+
+// Helper class for washer reports
+class WasherReport {
+  final Washer washer;
+  final List<CarWash> carWashes;
+  final double totalRevenue;
+  final double commission;
+
+  WasherReport({
+    required this.washer,
+    required this.carWashes,
+    required this.totalRevenue,
+    required this.commission,
+  });
 }

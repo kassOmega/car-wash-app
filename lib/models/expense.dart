@@ -22,17 +22,29 @@ class Expense {
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'description': description,
-      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 
-  static Expense fromMap(Map<String, dynamic> map) {
-    return Expense(
-      id: map['id'],
-      category: map['category'],
-      amount: (map['amount'] as num).toDouble(),
-      date: (map['date'] as Timestamp).toDate(),
-      description: map['description'],
-    );
+  factory Expense.fromMap(Map<String, dynamic> map) {
+    try {
+      return Expense(
+        id: map['id']?.toString() ?? '',
+        category: map['category']?.toString() ?? '',
+        amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+        date: (map['date'] is Timestamp)
+            ? (map['date'] as Timestamp).toDate()
+            : DateTime.now(),
+        description: map['description']?.toString() ?? '',
+      );
+    } catch (e) {
+      print('Error parsing Expense: $e');
+      return Expense(
+        id: map['id']?.toString() ?? 'error',
+        category: 'Unknown',
+        amount: 0.0,
+        date: DateTime.now(),
+        description: 'Error loading expense',
+      );
+    }
   }
 }

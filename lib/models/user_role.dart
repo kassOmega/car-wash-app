@@ -28,18 +28,45 @@ class AppUser {
     };
   }
 
-  static AppUser fromMap(Map<String, dynamic> map) {
-    return AppUser(
-      uid: map['uid'],
-      email: map['email'],
-      role: map['role'],
-      name: map['name'],
-      phone: map['phone'],
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
-    );
+  factory AppUser.fromMap(Map<String, dynamic> map) {
+    try {
+      // Handle createdAt - it could be Timestamp or DateTime
+      DateTime createdAt;
+      if (map['createdAt'] is Timestamp) {
+        createdAt = (map['createdAt'] as Timestamp).toDate();
+      } else if (map['createdAt'] is DateTime) {
+        createdAt = map['createdAt'] as DateTime;
+      } else {
+        createdAt = DateTime.now();
+      }
+
+      return AppUser(
+        uid: map['uid']?.toString() ?? '',
+        email: map['email']?.toString() ?? '',
+        role: map['role']?.toString()?.toLowerCase() ?? 'user',
+        name: map['name']?.toString(),
+        phone: map['phone']?.toString(),
+        createdAt: createdAt,
+      );
+    } catch (e) {
+      print('Error parsing AppUser: $e');
+      print('Map data: $map');
+      // Return a default user instead of throwing to prevent app crashes
+      return AppUser(
+        uid: map['uid']?.toString() ?? 'unknown',
+        email: map['email']?.toString() ?? 'unknown@example.com',
+        role: 'user',
+        createdAt: DateTime.now(),
+      );
+    }
   }
 
   bool get isOwner => role == 'owner';
   bool get isCashier => role == 'cashier';
   bool get isWasher => role == 'washer';
+
+  @override
+  String toString() {
+    return 'AppUser(uid: $uid, email: $email, role: $role, name: $name, phone: $phone)';
+  }
 }

@@ -4,31 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/car_wash.dart';
 import '../models/customer.dart';
 import '../models/expense.dart';
-import '../models/user_role.dart';
+import '../models/user_role.dart'; // Make sure to import AppUser
 import '../models/washer.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  // Define the collection name for car washes
-  static const String _carWashesCollection = 'carWashes';
-  String getNewDocumentId(String collectionPath) {
-    return _firestore.collection(collectionPath).doc().id;
-  }
-
-  Stream<List<CarWash>> getCarWashesByDateRange(DateTime start, DateTime end) {
-    // Firestore stores date as Timestamp, so we convert the DateTime objects.
-    return _firestore
-        .collection('car_washes')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
-        // Order by date is crucial for this query to work properly with range filters
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
-  }
 
   // Authentication
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -41,6 +22,7 @@ class FirebaseService {
     );
   }
 
+  // NEW METHOD: Sign Up with Role and User Details
   Future<UserCredential> signUpWithRole({
     required String email,
     required String password,
@@ -53,6 +35,7 @@ class FirebaseService {
       password: password,
     );
 
+    // Create user profile with all details
     final appUser = AppUser(
       uid: userCredential.user!.uid,
       email: email,
@@ -66,41 +49,146 @@ class FirebaseService {
     return userCredential;
   }
 
-  Future<void> signOut() async {
-    await _auth.signOut();
+// Add this method to your FirebaseService and call it once
+  Future<void> fixMissingUidFields() async {
+    try {
+      final usersSnapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+
+      for (final doc in usersSnapshot.docs) {
+        final data = doc.data();
+        if (data['uid'] == null) {
+          // Add the uid field using the document ID
+          await doc.reference.update({
+            'uid': doc.id,
+          });
+          print('Fixed user document: ${doc.id}');
+        }
+      }
+      print('All user documents have been updated with uid fields');
+    } catch (e) {
+      print('Error fixing user documents: $e');
+    }
   }
 
-  // User Management
+  // NEW METHOD: Create User Profile (used by signUpWithRole)
   Future<void> createUserProfile(AppUser appUser) async {
     await _firestore.collection('users').doc(appUser.uid).set(appUser.toMap());
   }
 
+  // Existing signUp method (keep for backward compatibility)
+  Future<UserCredential> signUp(
+      String email, String password, String role) async {
+    final userCredential = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    await _firestore.collection('users').doc(userCredential.user!.uid).set({
+      'email': email,
+      'role': role,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return userCredential;
+  }
+
+  Future<void> signOut() async {
+    await _auth.signOut();
+  }
+
+  // NEW METHOD: Get User Profile
   Future<AppUser?> getUserProfile(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (doc.exists) {
-      return AppUser.fromMap(doc.data()!);
+    try {
+      print('Fetching user profile from Firestore for UID: $uid');
+      final doc = await _firestore.collection('users').doc(uid).get();
+      print('Document exists: ${doc.exists}');
+
+      if (doc.exists) {
+        final data = doc.data();
+        print('Raw user data from Firestore: $data');
+
+        // TEMPORARY FIX: If uid is missing, add it from the document ID
+        if (data != null) {
+          data['uid'] = data['uid'] ?? doc.id;
+          print('Added uid to data: ${data['uid']}');
+        }
+
+        final appUser = AppUser.fromMap(data!);
+        print('Parsed AppUser: $appUser');
+
+        return appUser;
+      } else {
+        print('ERROR: No user document found for UID: $uid');
+        return null;
+      }
+    } catch (e) {
+      print('Error in getUserProfile: $e');
+      return null;
     }
-    return null;
   }
 
-  // CarWash Operations
-  Future<void> addCarWash(CarWash carWash) async {
-    await _firestore
-        .collection('carWashes')
-        .doc(carWash.id)
-        .set(carWash.toMap());
-  }
-
-  Stream<List<CarWash>> getCarWashes() {
+  // NEW METHOD: Get Car Washes by Specific Washer
+  Stream<List<CarWash>> getCarWashesByWasher(String washerId) {
     return _firestore
-        .collection('carWashes')
+        .collection('car_washes')
+        .where('washerId', isEqualTo: washerId)
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
   }
 
-  // CUSTOMER Operations
+  // Alternative: Get Car Washes by Washer with Date Range
+  Stream<List<CarWash>> getCarWashesByWasherAndDateRange(
+      String washerId, DateTime start, DateTime end) {
+    return _firestore
+        .collection('car_washes')
+        .where('washerId', isEqualTo: washerId)
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
+  }
+
+  // Keep your existing method for backward compatibility
+  Future<Map<String, dynamic>> getUserDocument(String uid) async {
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.data() ?? {};
+  }
+
+  // Car Wash Operations
+  Future<void> addCarWash(CarWash carWash) async {
+    await _firestore
+        .collection('car_washes')
+        .doc(carWash.id)
+        .set(carWash.toMap());
+  }
+
+  Stream<List<CarWash>> getCarWashes() {
+    return _firestore
+        .collection('car_washes')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
+  }
+
+  Stream<List<CarWash>> getCarWashesByDateRange(DateTime start, DateTime end) {
+    return _firestore
+        .collection('car_washes')
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
+  }
+
+// Car Washes by Washer with Date Range
+
+  // Customer Operations
   Future<void> addCustomer(Customer customer) async {
     await _firestore
         .collection('customers')
@@ -114,20 +202,9 @@ class FirebaseService {
             snapshot.docs.map((doc) => Customer.fromMap(doc.data())).toList());
   }
 
-  // WASHER Operations
+  // Washer Operations
   Future<void> addWasher(Washer washer) async {
     await _firestore.collection('washers').doc(washer.id).set(washer.toMap());
-  }
-
-  // Method to update a Washer document
-  Future<void> updateWasher(Washer washer) async {
-    // Using set() will update the existing document or create it if it doesn't exist (upsert).
-    await _firestore.collection('washers').doc(washer.id).set(washer.toMap());
-  }
-
-  // Method to delete a Washer document
-  Future<void> deleteWasher(String washerId) async {
-    await _firestore.collection('washers').doc(washerId).delete();
   }
 
   Stream<List<Washer>> getWashers() {
@@ -158,48 +235,6 @@ class FirebaseService {
         .collection('expenses')
         .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
         .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Expense.fromMap(doc.data())).toList());
-  }
-
-  Stream<List<CarWash>> getCarWashesByWasher(String washerId) {
-    return _firestore
-        .collection(_carWashesCollection)
-        .where('washerId',
-            isEqualTo: washerId) // Filters by the specific washer
-        .orderBy('date', descending: true)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
-  }
-  // STATS/DASHBOARD Operations
-
-  // Method requested by the user, now fetches CarWashes for a specific day
-  Stream<List<CarWash>> getDailyStatsStream(DateTime date) {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    // Use isLessThan the next day for a clean date range query
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    return _firestore
-        .collection('carWashes')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('date', isLessThan: Timestamp.fromDate(endOfDay))
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
-  }
-
-  // Companion method to fetch expenses for the day
-  Stream<List<Expense>> getDailyExpensesStream(DateTime date) {
-    final startOfDay = DateTime(date.year, date.month, date.day);
-    // Use isLessThan the next day for a clean date range query
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    return _firestore
-        .collection('expenses')
-        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('date', isLessThan: Timestamp.fromDate(endOfDay))
         .snapshots()
         .map((snapshot) =>
             snapshot.docs.map((doc) => Expense.fromMap(doc.data())).toList());

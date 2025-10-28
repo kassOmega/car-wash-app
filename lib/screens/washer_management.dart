@@ -2,296 +2,259 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/washer.dart';
-import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 
 class WasherManagement extends StatefulWidget {
-  const WasherManagement({super.key});
-
   @override
   _WasherManagementState createState() => _WasherManagementState();
 }
 
 class _WasherManagementState extends State<WasherManagement> {
-  // Controllers and state for the form
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   double _percentage = 50.0;
-  bool _isActive = true;
 
-  // New state to manage which washer is currently being edited
-  Washer? _editingWasher;
+  Future<void> _addWasher() async {
+    if (_nameController.text.isNotEmpty && _phoneController.text.isNotEmpty) {
+      final firebaseService =
+          Provider.of<FirebaseService>(context, listen: false);
+
+      final washer = Washer(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text,
+        phone: _phoneController.text,
+        percentage: _percentage,
+        createdAt: DateTime.now(),
+      );
+
+      await firebaseService.addWasher(washer);
+
+      _nameController.clear();
+      _phoneController.clear();
+      setState(() {
+        _percentage = 50.0;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Washer added successfully!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill all fields!')),
+      );
+    }
+  }
 
   @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
+  Widget build(BuildContext context) {
+    final firebaseService = Provider.of<FirebaseService>(context);
 
-  // General function to save (Add or Update) a washer
-  Future<void> _saveWasher() async {
-    if (_nameController.text.isEmpty || _phoneController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter name and phone.')),
-      );
-      return;
-    }
-
-    final firebaseService =
-        Provider.of<FirebaseService>(context, listen: false);
-
-    final washer = Washer(
-      // Use existing ID for update, or generate a new one for add
-      id: _editingWasher?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text,
-      phone: _phoneController.text,
-      percentage: _percentage,
-      isActive: _isActive, // Use the state from the form
-    );
-
-    if (_editingWasher == null) {
-      // ADD NEW WASHER
-      await firebaseService.addWasher(washer);
-    } else {
-      // UPDATE EXISTING WASHER
-      await firebaseService.updateWasher(washer);
-    }
-
-    // Dismiss dialog and show success message
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(_editingWasher == null
-              ? 'Washer added successfully!'
-              : 'Washer updated successfully!')),
-    );
-  }
-
-  // Function to handle deleting a washer
-  Future<void> _deleteWasher(Washer washer) async {
-    final firebaseService =
-        Provider.of<FirebaseService>(context, listen: false);
-
-    // Simple confirmation dialog before deleting
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) => AlertDialog(
-        title: const Text('Confirm Deletion'),
-        content: Text('Are you sure you want to delete ${washer.name}?'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Washer Management'),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
       ),
-    );
-
-    if (confirm == true) {
-      await firebaseService.deleteWasher(washer.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${washer.name} deleted.')),
-      );
-    }
-  }
-
-  // Function to show the Add/Edit form dialog
-  void _showWasherForm([Washer? washer]) {
-    setState(() {
-      _editingWasher = washer;
-      if (washer != null) {
-        // Populate fields for editing
-        _nameController.text = washer.name;
-        _phoneController.text = washer.phone;
-        _percentage = washer.percentage;
-        _isActive = washer.isActive;
-      } else {
-        // Clear fields for adding new
-        _nameController.clear();
-        _phoneController.clear();
-        _percentage = 50.0;
-        _isActive = true;
-      }
-    });
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateSB) {
-            return AlertDialog(
-              title: Text(washer == null ? 'Add New Washer' : 'Edit Washer'),
-              content: SingleChildScrollView(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Add Washer Form
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    Text(
+                      'Add New Washer',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 16),
                     TextField(
                       controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Name'),
+                      decoration: InputDecoration(
+                        labelText: 'Name',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
                     ),
+                    SizedBox(height: 16),
                     TextField(
                       controller: _phoneController,
-                      decoration: const InputDecoration(labelText: 'Phone'),
+                      decoration: InputDecoration(
+                        labelText: 'Phone',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.phone),
+                      ),
                       keyboardType: TextInputType.phone,
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 16),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                            'Commission Percentage: ${_percentage.toStringAsFixed(1)}%'),
+                          'Commission Percentage: ${_percentage.toStringAsFixed(1)}%',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         Slider(
                           value: _percentage,
                           min: 0,
                           max: 100,
                           divisions: 100,
                           onChanged: (value) {
-                            setStateSB(() {
+                            setState(() {
                               _percentage = value;
                             });
                           },
                         ),
                       ],
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Is Active'),
-                        Switch(
-                          value: _isActive,
-                          onChanged: (value) {
-                            setStateSB(() {
-                              _isActive = value;
-                            });
-                          },
-                          activeColor: Colors.green,
-                        ),
-                      ],
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _addWasher,
+                      child: Text('Add Washer'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        minimumSize: Size(double.infinity, 50),
+                      ),
                     ),
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: _saveWasher,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: Text(washer == null ? 'Add' : 'Update'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
+            ),
+            SizedBox(height: 20),
 
-  @override
-  Widget build(BuildContext context) {
-    final firebaseService = Provider.of<FirebaseService>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-
-    if (!authProvider.isOwner) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Access Denied'),
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(
-          child: Text('Only owners can manage washers.'),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Washer Management'),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            // The ADD CARD has been replaced by the FloatingActionButton
-            const SizedBox(height: 10),
+            // Washers List
             Expanded(
               child: StreamBuilder<List<Washer>>(
                 stream: firebaseService.getWashers(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                  // Debug information
+                  print('Stream connection state: ${snapshot.connectionState}');
+                  print('Has data: ${snapshot.hasData}');
+                  print('Has error: ${snapshot.hasError}');
+                  if (snapshot.hasError) {
+                    print('Stream error: ${snapshot.error}');
                   }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(
-                      child: Text(
-                          'No washers found. Tap the plus button to add one!'),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading washers...'),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error, size: 64, color: Colors.red),
+                          SizedBox(height: 16),
+                          Text(
+                            'Error loading washers',
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Please check your connection',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
                     );
                   }
 
                   final washers = snapshot.data ?? [];
 
-                  return ListView.builder(
-                    itemCount: washers.length,
-                    itemBuilder: (context, index) {
-                      final washer = washers[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          leading: Icon(Icons.person,
-                              color: washer.isActive
-                                  ? Colors.orange
-                                  : Colors.grey),
-                          title: Text(washer.name,
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(
-                              '${washer.phone} • ${washer.percentage.toStringAsFixed(1)}% Commission'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // EDIT ACTION
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _showWasherForm(washer),
-                              ),
-                              // DELETE ACTION
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
-                                onPressed: () => _deleteWasher(washer),
-                              ),
-                            ],
+                  if (washers.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.people_outline,
+                              size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'No Washers Found',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Add your first washer using the form above',
+                            style: TextStyle(color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'Washers (${washers.length})',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      );
-                    },
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: washers.length,
+                          itemBuilder: (context, index) {
+                            final washer = washers[index];
+                            return Card(
+                              margin: EdgeInsets.symmetric(vertical: 4),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: Colors.orange,
+                                  child:
+                                      Icon(Icons.person, color: Colors.white),
+                                ),
+                                title: Text(
+                                  washer.name,
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(washer.phone),
+                                    Text(
+                                      'Commission: ${washer.percentage}%',
+                                      style: TextStyle(color: Colors.blue),
+                                    ),
+                                  ],
+                                ),
+                                trailing: washer.isActive
+                                    ? Icon(Icons.check_circle,
+                                        color: Colors.green)
+                                    : Icon(Icons.cancel, color: Colors.red),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
             ),
           ],
         ),
-      ),
-      // Floating Action Button to add a new washer
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showWasherForm(null),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
       ),
     );
   }
