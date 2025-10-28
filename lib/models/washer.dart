@@ -41,7 +41,6 @@ class Washer {
             : DateTime.now(),
       );
     } catch (e) {
-      print('Error parsing Washer: $e');
       return Washer(
         id: map['id']?.toString() ?? 'error',
         name: 'Unknown Washer',

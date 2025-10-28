@@ -36,13 +36,9 @@ class FirebaseService {
           await doc.reference.update({
             'uid': doc.id,
           });
-          print('Fixed user document: ${doc.id}');
         }
       }
-      print('All user documents have been updated with uid fields');
-    } catch (e) {
-      print('Error fixing user documents: $e');
-    }
+    } catch (e) {}
   }
 
   // NEW METHOD: Create User Profile (used by signUpWithRole)
@@ -100,30 +96,23 @@ class FirebaseService {
   // NEW METHOD: Get User Profile
   Future<AppUser?> getUserProfile(String uid) async {
     try {
-      print('Fetching user profile from Firestore for UID: $uid');
       final doc = await _firestore.collection('users').doc(uid).get();
-      print('Document exists: ${doc.exists}');
 
       if (doc.exists) {
         final data = doc.data();
-        print('Raw user data from Firestore: $data');
 
         // TEMPORARY FIX: If uid is missing, add it from the document ID
         if (data != null) {
           data['uid'] = data['uid'] ?? doc.id;
-          print('Added uid to data: ${data['uid']}');
         }
 
         final appUser = AppUser.fromMap(data!);
-        print('Parsed AppUser: $appUser');
 
         return appUser;
       } else {
-        print('ERROR: No user document found for UID: $uid');
         return null;
       }
     } catch (e) {
-      print('Error in getUserProfile: $e');
       return null;
     }
   }
@@ -281,21 +270,104 @@ class FirebaseService {
   }
 
   // prices
-  // Add to your FirebaseService class
-
-// Price Operations
+  // Price Operations - Comprehensive Methods
   Future<void> addPrice(Price price) async {
-    await _firestore
-        .collection('prices')
-        .doc(price.vehicleType)
-        .set(price.toMap());
+    try {
+      await _firestore
+          .collection('prices')
+          .doc(price.vehicleType)
+          .set(price.toMap());
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> updatePrice(Price price) async {
-    await _firestore
-        .collection('prices')
-        .doc(price.vehicleType)
-        .update(price.toMap());
+    try {
+      await _firestore
+          .collection('prices')
+          .doc(price.vehicleType)
+          .update(price.toMap());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Bulk update prices method
+  Future<void> updatePrices(List<Price> prices) async {
+    try {
+      final batch = _firestore.batch();
+
+      for (final price in prices) {
+        final priceRef = _firestore.collection('prices').doc(price.vehicleType);
+        batch.set(priceRef, price.toMap());
+      }
+
+      await batch.commit();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Update single price by vehicle type
+  Future<void> updatePriceByVehicleType(
+      String vehicleType, double newAmount) async {
+    try {
+      if (newAmount <= 0) {
+        throw Exception('Amount must be greater than 0');
+      }
+
+      final price = Price(vehicleType: vehicleType, amount: newAmount);
+      await _firestore
+          .collection('prices')
+          .doc(vehicleType)
+          .update(price.toMap());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Update multiple prices with map
+  Future<void> updateMultiplePrices(Map<String, double> priceUpdates) async {
+    try {
+      final batch = _firestore.batch();
+
+      priceUpdates.forEach((vehicleType, amount) {
+        if (amount <= 0) {
+          throw Exception('Amount for $vehicleType must be greater than 0');
+        }
+
+        final priceRef = _firestore.collection('prices').doc(vehicleType);
+        final price = Price(vehicleType: vehicleType, amount: amount);
+        batch.set(priceRef, price.toMap());
+      });
+
+      await batch.commit();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Check if price exists before updating
+  Future<bool> priceExists(String vehicleType) async {
+    try {
+      final doc = await _firestore.collection('prices').doc(vehicleType).get();
+      return doc.exists;
+    } catch (e) {
+      return false;
+    }
+  }
+
+// NEW: Update or create price (upsert)
+  Future<void> upsertPrice(Price price) async {
+    try {
+      await _firestore
+          .collection('prices')
+          .doc(price.vehicleType)
+          .set(price.toMap(), SetOptions(merge: true));
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Stream<List<Price>> getPrices() {
@@ -308,31 +380,90 @@ class FirebaseService {
   }
 
   Future<Price?> getPriceByVehicleType(String vehicleType) async {
-    final doc = await _firestore.collection('prices').doc(vehicleType).get();
-    if (doc.exists) {
-      return Price.fromMap(doc.data()!);
+    try {
+      final doc = await _firestore.collection('prices').doc(vehicleType).get();
+      if (doc.exists) {
+        return Price.fromMap(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
-    return null;
+  }
+
+// NEW: Get all prices as a map for easy access
+  Future<Map<String, double>> getPricesMap() async {
+    try {
+      final snapshot = await _firestore.collection('prices').get();
+      final pricesMap = <String, double>{};
+
+      for (final doc in snapshot.docs) {
+        final price = Price.fromMap(doc.data());
+        pricesMap[price.vehicleType] = price.amount;
+      }
+
+      return pricesMap;
+    } catch (e) {
+      return {};
+    }
   }
 
 // Initialize default prices (call this once in your app)
   Future<void> initializeDefaultPrices() async {
-    final defaultPrices = [
-      Price(vehicleType: 'Motorcycle', amount: 200),
-      Price(vehicleType: 'Bajaj', amount: 400),
-      Price(vehicleType: 'Car', amount: 500),
-      Price(vehicleType: 'Isuzu', amount: 1000),
-      Price(vehicleType: 'Sino', amount: 1500),
-      Price(vehicleType: 'Lowbed', amount: 2400),
-      Price(vehicleType: 'Bajaj-Body', amount: 300),
-      Price(vehicleType: 'Car-Body', amount: 400),
-      Price(vehicleType: 'Isuzu-Body', amount: 600),
-      Price(vehicleType: 'Sino-Body', amount: 750),
-      Price(vehicleType: 'Sino-Trailer', amount: 500),
-    ];
+    try {
+      final defaultPrices = [
+        Price(vehicleType: 'Motorcycle', amount: 200),
+        Price(vehicleType: 'Bajaj', amount: 400),
+        Price(vehicleType: 'Car', amount: 500),
+        Price(vehicleType: 'Isuzu', amount: 1000),
+        Price(vehicleType: 'Sino', amount: 1500),
+        Price(vehicleType: 'Lowbed', amount: 2400),
+        Price(vehicleType: 'Bajaj-Body', amount: 300),
+        Price(vehicleType: 'Car-Body', amount: 400),
+        Price(vehicleType: 'Isuzu-Body', amount: 600),
+        Price(vehicleType: 'Sino-Body', amount: 750),
+        Price(vehicleType: 'Sino-Trailer', amount: 500),
+      ];
 
-    for (final price in defaultPrices) {
-      await addPrice(price);
+      // Use batch write for better performance
+      final batch = _firestore.batch();
+
+      for (final price in defaultPrices) {
+        final priceRef = _firestore.collection('prices').doc(price.vehicleType);
+        batch.set(priceRef, price.toMap());
+      }
+
+      await batch.commit();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Reset all prices to default
+  Future<void> resetToDefaultPrices() async {
+    try {
+      await initializeDefaultPrices();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Delete a price
+  Future<void> deletePrice(String vehicleType) async {
+    try {
+      await _firestore.collection('prices').doc(vehicleType).delete();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+// NEW: Get total number of price entries
+  Future<int> getPriceCount() async {
+    try {
+      final snapshot = await _firestore.collection('prices').get();
+      return snapshot.size;
+    } catch (e) {
+      return 0;
     }
   }
 }

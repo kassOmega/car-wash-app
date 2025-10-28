@@ -54,7 +54,7 @@ class CarWash {
         plateNumber: map['plateNumber']?.toString(), // NEW FIELD
       );
     } catch (e) {
-      print('Error parsing CarWash: $e');
+
       return CarWash(
         id: map['id']?.toString() ?? 'error',
         washerId: map['washerId']?.toString() ?? '',

@@ -32,11 +32,9 @@ class AuthProvider with ChangeNotifier {
     if (_user != null) {
       try {
         _appUser = await _firebaseService.getUserProfile(_user!.uid);
-        print('Loaded user profile: ${_appUser?.toMap()}'); // Debug
+
         notifyListeners();
-      } catch (e) {
-        print('Error loading user profile: $e');
-      }
+      } catch (e) {}
     }
   }
 

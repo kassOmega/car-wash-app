@@ -49,8 +49,6 @@ class AppUser {
         createdAt: createdAt,
       );
     } catch (e) {
-      print('Error parsing AppUser: $e');
-      print('Map data: $map');
       // Return a default user instead of throwing to prevent app crashes
       return AppUser(
         uid: map['uid']?.toString() ?? 'unknown',

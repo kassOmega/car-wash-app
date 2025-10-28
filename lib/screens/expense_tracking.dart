@@ -170,13 +170,6 @@ class _ExpenseTrackingState extends State<ExpenseTracking> {
                 stream: firebaseService.getExpenses(),
                 builder: (context, snapshot) {
                   // Debug information
-                  print(
-                      'Expenses stream connection state: ${snapshot.connectionState}');
-                  print('Expenses has data: ${snapshot.hasData}');
-                  print('Expenses has error: ${snapshot.hasError}');
-                  if (snapshot.hasError) {
-                    print('Expenses stream error: ${snapshot.error}');
-                  }
 
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(

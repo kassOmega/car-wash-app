@@ -323,13 +323,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(price.vehicleType),
-                            Text(
-                              'TZS ${price.amount.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                           ],
                         ),
                       );

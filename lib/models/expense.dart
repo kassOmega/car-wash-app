@@ -37,7 +37,6 @@ class Expense {
         description: map['description']?.toString() ?? '',
       );
     } catch (e) {
-      print('Error parsing Expense: $e');
       return Expense(
         id: map['id']?.toString() ?? 'error',
         category: 'Unknown',

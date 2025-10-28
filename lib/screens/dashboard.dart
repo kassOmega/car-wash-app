@@ -97,7 +97,7 @@ class Dashboard extends StatelessWidget {
                             Column(
                               children: [
                                 Text(
-                                  '\$${todayRevenue.toStringAsFixed(2)}',
+                                  'ETB ${todayRevenue.toStringAsFixed(2)}',
                                   style: TextStyle(
                                       fontSize: 24,
                                       fontWeight: FontWeight.bold,

@@ -91,9 +91,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                           if (snapshot.hasData) {
                             _allWashers = snapshot.data!;
                           }
-                          if (snapshot.hasError) {
-                            print('Error loading washers: ${snapshot.error}');
-                          }
+                          if (snapshot.hasError) {}
                           return _buildWasherDropdown();
                         },
                       ),
@@ -207,12 +205,6 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       59,
     );
 
-    print('=== DEBUG: Querying Firestore ===');
-    print('Start Date: $startDate');
-    print('End Date: $adjustedEndDate');
-    print('Selected Washer ID: $_selectedWasherId');
-    print('========================');
-
     return StreamBuilder<List<CarWash>>(
       stream: _selectedWasherId != null
           ? firebaseService.getCarWashesByWasherAndDateRange(
@@ -225,18 +217,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               adjustedEndDate,
             ),
       builder: (context, snapshot) {
-        print('=== DEBUG: StreamBuilder State ===');
-        print('Connection State: ${snapshot.connectionState}');
-        print('Has Data: ${snapshot.hasData}');
-        print('Has Error: ${snapshot.hasError}');
-        if (snapshot.hasError) {
-          print('Stream Error: ${snapshot.error}');
-          print('Error StackTrace: ${snapshot.stackTrace}');
-        }
-        if (snapshot.hasData) {
-          print('Data Length: ${snapshot.data!.length}');
-        }
-        print('========================');
+        if (snapshot.hasError) {}
+        if (snapshot.hasData) {}
 
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
@@ -253,7 +235,6 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
 
         if (snapshot.hasError) {
           final error = snapshot.error.toString();
-          print('Setting error message: $error');
 
           // Set the error message for display
           WidgetsBinding.instance.addPostFrameCallback((_) {
