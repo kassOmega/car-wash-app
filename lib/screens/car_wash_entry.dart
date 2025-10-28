@@ -138,7 +138,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
             onPressed: _clearForm,
             tooltip: 'Clear Form',
           ),
-          if (authProvider.isOwner || authProvider.isCashier)
+          if (authProvider.isOwner)
             IconButton(
               icon: Icon(Icons.attach_money),
               onPressed: () {
