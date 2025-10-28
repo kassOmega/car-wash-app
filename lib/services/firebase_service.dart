@@ -198,7 +198,24 @@ class FirebaseService {
     });
   }
 
-// Car Washes by Washer with Date Range
+// Washer update method
+  Future<void> updateWasher(Washer washer) async {
+    await _firestore.collection('washers').doc(washer.id).update({
+      'name': washer.name,
+      'phone': washer.phone,
+      'percentage': washer.percentage,
+      'isActive': washer.isActive,
+    });
+  }
+
+// Customer update method
+  Future<void> updateCustomer(Customer customer) async {
+    await _firestore.collection('customers').doc(customer.id).update({
+      'name': customer.name,
+      'phone': customer.phone,
+      'customerType': customer.customerType,
+    });
+  }
 
   // Customer Operations
   Future<void> addCustomer(Customer customer) async {
