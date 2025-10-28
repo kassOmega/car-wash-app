@@ -66,28 +66,6 @@ class Dashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Welcome message with role
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Welcome, ${authProvider.appUser?.name ?? authProvider.user?.email}!',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Role: ${authProvider.appUser?.role ?? "No role"} (${_getRoleDisplayName(authProvider.appUser?.role)})',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16),
-
                 // Today's summary (visible to all)
                 Card(
                   child: Padding(

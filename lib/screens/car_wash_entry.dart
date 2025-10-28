@@ -248,13 +248,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(washer.name),
-                              Text(
-                                'Commission: ${washer.percentage}%',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
                             ],
                           ),
                         );
