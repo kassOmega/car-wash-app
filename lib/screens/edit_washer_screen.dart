@@ -23,9 +23,8 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize form with existing washer data
     _nameController.text = widget.washer.name;
-    _phoneController.text = widget.washer.phone;
+    _phoneController.text = widget.washer.phone ?? ''; // Handle null phone
     _percentage = widget.washer.percentage;
     _isActive = widget.washer.isActive;
   }
@@ -73,6 +72,57 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
     }
   }
 
+  Future<void> _deleteWasher() async {
+    final bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Washer'),
+          content: Text(
+            'Are you sure you want to delete ${widget.washer.name}? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        final firebaseService =
+            Provider.of<FirebaseService>(context, listen: false);
+        await firebaseService.deleteWasher(widget.washer.id);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Washer deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context); // Go back to previous screen
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting washer: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,6 +135,12 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
             icon: Icon(Icons.save),
             onPressed: _updateWasher,
             tooltip: 'Save Changes',
+          ),
+          IconButton(
+            icon: Icon(Icons.delete),
+            onPressed: _deleteWasher,
+            tooltip: 'Delete Washer',
+            color: Colors.red,
           ),
         ],
       ),
@@ -130,17 +186,11 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
                       TextFormField(
                         controller: _phoneController,
                         decoration: InputDecoration(
-                          labelText: 'Phone',
+                          labelText: 'Phone (Optional)',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.phone),
                         ),
                         keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter phone number';
-                          }
-                          return null;
-                        },
                       ),
                       SizedBox(height: 16),
 
@@ -200,6 +250,21 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
                           minimumSize: Size(double.infinity, 50),
+                        ),
+                      ),
+
+                      SizedBox(height: 16),
+
+                      // Delete Button
+                      OutlinedButton(
+                        onPressed: _deleteWasher,
+                        child: Text(
+                          'Delete Washer',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50),
+                          side: BorderSide(color: Colors.red),
                         ),
                       ),
                     ],

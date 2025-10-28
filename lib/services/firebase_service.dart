@@ -216,6 +216,17 @@ class FirebaseService {
       'customerType': customer.customerType,
     });
   }
+// Add to FirebaseService class
+
+// Washer delete method
+  Future<void> deleteWasher(String washerId) async {
+    await _firestore.collection('washers').doc(washerId).delete();
+  }
+
+// Customer delete method
+  Future<void> deleteCustomer(String customerId) async {
+    await _firestore.collection('customers').doc(customerId).delete();
+  }
 
   // Customer Operations
   Future<void> addCustomer(Customer customer) async {

@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Washer {
   final String id;
   final String name;
-  final String phone;
+  final String? phone; // Make phone optional
   final double percentage;
   final bool isActive;
   final DateTime createdAt;
@@ -11,9 +11,9 @@ class Washer {
   Washer({
     required this.id,
     required this.name,
-    required this.phone,
+    this.phone, // Now optional
     required this.percentage,
-    this.isActive = true, // Default to active
+    this.isActive = true,
     required this.createdAt,
   });
 
@@ -21,7 +21,7 @@ class Washer {
     return {
       'id': id,
       'name': name,
-      'phone': phone,
+      'phone': phone, // Can be null
       'percentage': percentage,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -31,9 +31,9 @@ class Washer {
   factory Washer.fromMap(Map<String, dynamic> map) {
     try {
       return Washer(
-        id: map['id']?.toString() ?? '',
+        id: map['id']?.toString() ?? '', // Ensure ID is never null
         name: map['name']?.toString() ?? '',
-        phone: map['phone']?.toString() ?? '',
+        phone: map['phone']?.toString(), // Can be null
         percentage: (map['percentage'] as num?)?.toDouble() ?? 50.0,
         isActive: map['isActive'] as bool? ?? true,
         createdAt: (map['createdAt'] is Timestamp)
@@ -44,12 +44,16 @@ class Washer {
       print('Error parsing Washer: $e');
       return Washer(
         id: map['id']?.toString() ?? 'error',
-        name: map['name']?.toString() ?? 'Unknown',
-        phone: map['phone']?.toString() ?? '',
+        name: 'Unknown Washer',
         percentage: 50.0,
-        isActive: true,
+        isActive: false,
         createdAt: DateTime.now(),
       );
     }
+  }
+
+  @override
+  String toString() {
+    return 'Washer(id: $id, name: $name, phone: $phone, percentage: $percentage, isActive: $isActive)';
   }
 }

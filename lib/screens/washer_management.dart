@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/washer.dart';
 import '../services/firebase_service.dart';
+import 'edit_washer_screen.dart'; // Make sure to import the edit screen
 
 class WasherManagement extends StatefulWidget {
   @override
@@ -15,33 +16,120 @@ class _WasherManagementState extends State<WasherManagement> {
   double _percentage = 50.0;
 
   Future<void> _addWasher() async {
-    if (_nameController.text.isNotEmpty && _phoneController.text.isNotEmpty) {
+    if (_nameController.text.isNotEmpty) {
+      // Only name is required now
       final firebaseService =
           Provider.of<FirebaseService>(context, listen: false);
 
+      // Generate a proper ID
+      final washerId = DateTime.now().millisecondsSinceEpoch.toString();
+
       final washer = Washer(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: washerId,
         name: _nameController.text,
-        phone: _phoneController.text,
+        phone: _phoneController.text.isNotEmpty
+            ? _phoneController.text
+            : null, // Optional phone
         percentage: _percentage,
         createdAt: DateTime.now(),
       );
 
-      await firebaseService.addWasher(washer);
+      try {
+        await firebaseService.addWasher(washer);
 
-      _nameController.clear();
-      _phoneController.clear();
-      setState(() {
-        _percentage = 50.0;
-      });
+        _nameController.clear();
+        _phoneController.clear();
+        setState(() {
+          _percentage = 50.0;
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Washer added successfully!')),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Washer added successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding washer: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please fill all fields!')),
+        SnackBar(
+          content: Text('Please enter at least a name!'),
+          backgroundColor: Colors.red,
+        ),
       );
+    }
+  }
+
+  Future<void> _deleteWasher(Washer washer) async {
+    // Validate washer ID before attempting deletion
+    if (washer.id.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: Invalid washer ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Washer'),
+          content: Text(
+            'Are you sure you want to delete ${washer.name}? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        final firebaseService =
+            Provider.of<FirebaseService>(context, listen: false);
+
+        // Double-check ID before deletion
+        if (washer.id.isNotEmpty) {
+          await firebaseService.deleteWasher(washer.id);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Washer deleted successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception('Washer ID is empty');
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting washer: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -76,7 +164,7 @@ class _WasherManagementState extends State<WasherManagement> {
                     TextField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Name',
+                        labelText: 'Name *',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.person),
                       ),
@@ -85,7 +173,7 @@ class _WasherManagementState extends State<WasherManagement> {
                     TextField(
                       controller: _phoneController,
                       decoration: InputDecoration(
-                        labelText: 'Phone',
+                        labelText: 'Phone (Optional)',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.phone),
                       ),
@@ -133,14 +221,6 @@ class _WasherManagementState extends State<WasherManagement> {
               child: StreamBuilder<List<Washer>>(
                 stream: firebaseService.getWashers(),
                 builder: (context, snapshot) {
-                  // Debug information
-                  print('Stream connection state: ${snapshot.connectionState}');
-                  print('Has data: ${snapshot.hasData}');
-                  print('Has error: ${snapshot.hasError}');
-                  if (snapshot.hasError) {
-                    print('Stream error: ${snapshot.error}');
-                  }
-
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(
                       child: Column(
@@ -232,17 +312,55 @@ class _WasherManagementState extends State<WasherManagement> {
                                 subtitle: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(washer.phone),
+                                    Text(
+                                      washer.phone ??
+                                          'No phone number', // Handle null phone
+                                      style: TextStyle(
+                                        color: washer.phone == null
+                                            ? Colors.grey
+                                            : Colors.black,
+                                      ),
+                                    ),
                                     Text(
                                       'Commission: ${washer.percentage}%',
                                       style: TextStyle(color: Colors.blue),
                                     ),
                                   ],
                                 ),
-                                trailing: washer.isActive
-                                    ? Icon(Icons.check_circle,
-                                        color: Colors.green)
-                                    : Icon(Icons.cancel, color: Colors.red),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Edit Button
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.edit, color: Colors.blue),
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                EditWasherScreen(
+                                                    washer: washer),
+                                          ),
+                                        );
+                                      },
+                                      tooltip: 'Edit Washer',
+                                    ),
+                                    // Delete Button
+                                    IconButton(
+                                      icon:
+                                          Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteWasher(washer),
+                                      tooltip: 'Delete Washer',
+                                    ),
+                                    // Status Indicator
+                                    washer.isActive
+                                        ? Icon(Icons.check_circle,
+                                            color: Colors.green, size: 20)
+                                        : Icon(Icons.cancel,
+                                            color: Colors.red, size: 20),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -257,5 +375,12 @@ class _WasherManagementState extends State<WasherManagement> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
   }
 }

@@ -71,6 +71,57 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
     }
   }
 
+  Future<void> _deleteCustomer() async {
+    final bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Customer'),
+          content: Text(
+            'Are you sure you want to delete ${widget.customer.name}? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        final firebaseService =
+            Provider.of<FirebaseService>(context, listen: false);
+        await firebaseService.deleteCustomer(widget.customer.id);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Customer deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context); // Go back to previous screen
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting customer: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,6 +134,12 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
             icon: Icon(Icons.save),
             onPressed: _updateCustomer,
             tooltip: 'Save Changes',
+          ),
+          IconButton(
+            icon: Icon(Icons.delete),
+            onPressed: _deleteCustomer,
+            tooltip: 'Delete Customer',
+            color: Colors.red,
           ),
         ],
       ),
@@ -200,6 +257,21 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                           minimumSize: Size(double.infinity, 50),
+                        ),
+                      ),
+
+                      SizedBox(height: 16),
+
+                      // Delete Button
+                      OutlinedButton(
+                        onPressed: _deleteCustomer,
+                        child: Text(
+                          'Delete Customer',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50),
+                          side: BorderSide(color: Colors.red),
                         ),
                       ),
                     ],

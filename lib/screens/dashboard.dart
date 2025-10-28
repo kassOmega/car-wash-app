@@ -8,6 +8,7 @@ import 'car_wash_entry.dart';
 import 'customer_management.dart';
 import 'expense_tracking.dart';
 import 'reports.dart';
+import 'user_registration.dart';
 import 'washer_management.dart';
 import 'washer_reports.dart';
 
@@ -166,6 +167,11 @@ class Dashboard extends StatelessWidget {
 
     // Only Owners can manage washers
     if (authProvider.isOwner) {
+      menuItems.add(
+          _buildMenuCard('Register User', Icons.person_add, Colors.teal, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => UserRegistrationScreen()));
+      }));
       menuItems.add(_buildMenuCard('Washers', Icons.person, Colors.orange, () {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => WasherManagement()));

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/customer.dart';
 import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
+import 'edit_customer_screen.dart';
 
 class CustomerManagement extends StatefulWidget {
   @override
@@ -136,24 +137,55 @@ class _CustomerManagementState extends State<CustomerManagement> {
                   final customers = snapshot.data ?? [];
 
                   return ListView.builder(
-                    itemCount: customers.length,
-                    itemBuilder: (context, index) {
-                      final customer = customers[index];
-                      return Card(
-                        margin: EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          leading: Icon(Icons.people, color: Colors.green),
-                          title: Text(customer.name),
-                          subtitle: Text(
-                              '${customer.phone} • ${customer.customerType}'),
-                          trailing: Text(
-                            customer.registrationDate.toString().split(' ')[0],
-                            style: TextStyle(color: Colors.grey),
+                      itemCount: customers.length,
+                      itemBuilder: (context, index) {
+                        final customer = customers[index];
+                        return Card(
+                          margin: EdgeInsets.symmetric(vertical: 4),
+                          child: ListTile(
+                            leading: Icon(Icons.people, color: Colors.green),
+                            title: Text(customer.name),
+                            subtitle: Text(
+                                '${customer.phone} • ${customer.customerType}'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Edit Button
+                                IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            EditCustomerScreen(
+                                                customer: customer),
+                                      ),
+                                    );
+                                  },
+                                  tooltip: 'Edit Customer',
+                                ),
+                                // Delete Button
+                                IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () =>
+                                      _showDeleteCustomerDialog(customer),
+                                  tooltip: 'Delete Customer',
+                                ),
+                                SizedBox(width: 8),
+                                // Registration Date
+                                Text(
+                                  customer.registrationDate
+                                      .toString()
+                                      .split(' ')[0],
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 12),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  );
+                        );
+                      });
                 },
               ),
             ),
@@ -161,5 +193,54 @@ class _CustomerManagementState extends State<CustomerManagement> {
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteCustomerDialog(Customer customer) async {
+    final bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Customer'),
+          content: Text(
+            'Are you sure you want to delete ${customer.name}? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        final firebaseService =
+            Provider.of<FirebaseService>(context, listen: false);
+        await firebaseService.deleteCustomer(customer.id);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Customer deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting customer: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
