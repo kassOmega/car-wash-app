@@ -270,7 +270,7 @@ class _ReportsState extends State<Reports> {
                       ),
                       _buildStatCard(
                         'Total Revenue',
-                        '\$${report['totalRevenue'].toStringAsFixed(2)}',
+                        'ETB ${report['totalRevenue'].toStringAsFixed(2)}',
                         Icons.attach_money,
                         Colors.green,
                       ),
@@ -286,13 +286,13 @@ class _ReportsState extends State<Reports> {
                       children: [
                         _buildStatCard(
                           'Total Expenses',
-                          '\$${report['totalExpenses'].toStringAsFixed(2)}',
+                          'ETB ${report['totalExpenses'].toStringAsFixed(2)}',
                           Icons.money_off,
                           Colors.red,
                         ),
                         _buildStatCard(
                           'Net Profit',
-                          '\$${report['netProfit'].toStringAsFixed(2)}',
+                          'ETB ${report['netProfit'].toStringAsFixed(2)}',
                           Icons.trending_up,
                           report['netProfit'] >= 0 ? Colors.green : Colors.red,
                         ),
@@ -449,7 +449,7 @@ class _ReportsState extends State<Reports> {
             style: TextStyle(fontWeight: FontWeight.w500),
           ),
           trailing: Text(
-            '\$${entry.value.toStringAsFixed(2)}',
+            'ETB ${entry.value.toStringAsFixed(2)}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.green,

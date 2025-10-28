@@ -378,21 +378,21 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                           Expanded(
                             child: _buildStatCard(
                               'Total',
-                              '\$${totalRevenue.toStringAsFixed(2)}',
+                              'ETB ${totalRevenue.toStringAsFixed(2)}',
                               Colors.green,
                             ),
                           ),
                           Expanded(
                             child: _buildStatCard(
                               'Commission',
-                              '\$${washerCommission.toStringAsFixed(2)}',
+                              'ETB ${washerCommission.toStringAsFixed(2)}',
                               Colors.orange,
                             ),
                           ),
                           Expanded(
                             child: _buildStatCard(
                               'Owner',
-                              '\$${ownerRevenue.toStringAsFixed(2)}',
+                              'ETB ${ownerRevenue.toStringAsFixed(2)}',
                               Colors.blue,
                             ),
                           ),
@@ -506,7 +506,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${report.carWashes.length} vehicles • \$${report.totalRevenue.toStringAsFixed(2)}',
+          '${report.carWashes.length} vehicles • ETB ${report.totalRevenue.toStringAsFixed(2)}',
           style: TextStyle(fontSize: 12),
           overflow: TextOverflow.ellipsis,
         ),
@@ -518,7 +518,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '\$${report.commission.toStringAsFixed(2)}',
+                'ETB ${report.commission.toStringAsFixed(2)}',
                 style: TextStyle(
                   color: Colors.orange,
                   fontWeight: FontWeight.bold,
@@ -588,7 +588,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           ),
         ),
         trailing: Text(
-          '\$${carWash.amount.toStringAsFixed(2)}',
+          'ETB ${carWash.amount.toStringAsFixed(2)}',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.green,
