@@ -90,7 +90,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Equipment usage recorded successfully!'),
+            content: Text('Issued Items recorded successfully!'),
             backgroundColor: Colors.green),
       );
     } catch (e) {
@@ -110,7 +110,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Record Equipment Usage'),
+        title: Text('Record Issued Items Usage'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -123,7 +123,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    Text('Record Equipment Usage',
+                    Text('Record Issued Items',
                         style: TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     SizedBox(height: 16),
@@ -206,7 +206,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Outstanding Equipment Payments',
+                  Text('Outstanding Issued Items Payments',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   SizedBox(height: 8),
