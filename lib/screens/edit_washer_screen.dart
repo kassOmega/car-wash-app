@@ -7,7 +7,7 @@ import '../services/firebase_service.dart';
 class EditWasherScreen extends StatefulWidget {
   final Washer washer;
 
-  const EditWasherScreen({Key? key, required this.washer}) : super(key: key);
+  const EditWasherScreen({super.key, required this.washer});
 
   @override
   _EditWasherScreenState createState() => _EditWasherScreenState();
@@ -232,7 +232,7 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
                                 _isActive = value;
                               });
                             },
-                            activeColor: Colors.green,
+                            activeThumbColor: Colors.green,
                           ),
                           Text(_isActive ? 'Active' : 'Inactive'),
                         ],
@@ -242,14 +242,14 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
                       // Save Button
                       ElevatedButton(
                         onPressed: _updateWasher,
-                        child: Text(
-                          'Update Washer',
-                          style: TextStyle(fontSize: 16),
-                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
                           minimumSize: Size(double.infinity, 50),
+                        ),
+                        child: Text(
+                          'Update Washer',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
 
@@ -258,13 +258,13 @@ class _EditWasherScreenState extends State<EditWasherScreen> {
                       // Delete Button
                       OutlinedButton(
                         onPressed: _deleteWasher,
-                        child: Text(
-                          'Delete Washer',
-                          style: TextStyle(color: Colors.red),
-                        ),
                         style: OutlinedButton.styleFrom(
                           minimumSize: Size(double.infinity, 50),
                           side: BorderSide(color: Colors.red),
+                        ),
+                        child: Text(
+                          'Delete Washer',
+                          style: TextStyle(color: Colors.red),
                         ),
                       ),
                     ],

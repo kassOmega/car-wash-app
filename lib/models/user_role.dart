@@ -43,7 +43,7 @@ class AppUser {
       return AppUser(
         uid: map['uid']?.toString() ?? '',
         email: map['email']?.toString() ?? '',
-        role: map['role']?.toString()?.toLowerCase() ?? 'user',
+        role: map['role']?.toString().toLowerCase() ?? 'user',
         name: map['name']?.toString(),
         phone: map['phone']?.toString(),
         createdAt: createdAt,

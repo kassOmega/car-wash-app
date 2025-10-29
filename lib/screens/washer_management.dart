@@ -6,6 +6,8 @@ import '../services/firebase_service.dart';
 import 'edit_washer_screen.dart'; // Make sure to import the edit screen
 
 class WasherManagement extends StatefulWidget {
+  const WasherManagement({super.key});
+
   @override
   _WasherManagementState createState() => _WasherManagementState();
 }
@@ -203,12 +205,12 @@ class _WasherManagementState extends State<WasherManagement> {
                     SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _addWasher,
-                      child: Text('Add Washer'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
                         minimumSize: Size(double.infinity, 50),
                       ),
+                      child: Text('Add Washer'),
                     ),
                   ],
                 ),

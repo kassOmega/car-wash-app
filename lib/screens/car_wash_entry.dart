@@ -10,6 +10,8 @@ import '../services/firebase_service.dart';
 import 'prices_list_screen.dart';
 
 class CarWashEntry extends StatefulWidget {
+  const CarWashEntry({super.key});
+
   @override
   _CarWashEntryState createState() => _CarWashEntryState();
 }
@@ -164,7 +166,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return DropdownButtonFormField<String>(
-                        value: null,
+                        initialValue: null,
                         decoration: InputDecoration(
                           labelText: 'Loading customers...',
                           border: OutlineInputBorder(),
@@ -177,7 +179,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                     _customers = snapshot.data ?? [];
 
                     return DropdownButtonFormField<String>(
-                      value: _selectedCustomerId,
+                      initialValue: _selectedCustomerId,
                       decoration: InputDecoration(
                         labelText: 'Customer (Optional)',
                         border: OutlineInputBorder(),
@@ -193,7 +195,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                             value: customer.id,
                             child: Text(customer.name),
                           );
-                        }).toList(),
+                        }),
                       ],
                       onChanged: (value) {
                         setState(() {
@@ -212,7 +214,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return DropdownButtonFormField<String>(
-                      value: null,
+                      initialValue: null,
                       decoration: InputDecoration(
                         labelText: 'Loading washers...',
                         border: OutlineInputBorder(),
@@ -259,7 +261,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                   }
 
                   return DropdownButtonFormField<String>(
-                    value: _selectedWasherId,
+                    initialValue: _selectedWasherId,
                     decoration: InputDecoration(
                       labelText: 'Washer *',
                       border: OutlineInputBorder(),
@@ -285,7 +287,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -310,7 +312,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                   }
 
                   return DropdownButtonFormField<String>(
-                    value: _vehicleType,
+                    initialValue: _vehicleType,
                     decoration: InputDecoration(
                       labelText: 'Vehicle Type *',
                       border: OutlineInputBorder(),
@@ -402,15 +404,15 @@ class _CarWashEntryState extends State<CarWashEntry> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _submitCarWash,
-                      child: Text(
-                        'Record Car Wash',
-                        style: TextStyle(fontSize: 16),
-                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.symmetric(vertical: 16),
                         elevation: 2,
+                      ),
+                      child: Text(
+                        'Record Car Wash',
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ),
@@ -421,10 +423,10 @@ class _CarWashEntryState extends State<CarWashEntry> {
               SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _submitCarWash,
-                child: Text('Save and Add Another'),
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16),
                 ),
+                child: Text('Save and Add Another'),
               ),
             ],
           ),

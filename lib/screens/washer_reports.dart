@@ -7,6 +7,8 @@ import '../models/washer.dart';
 import '../services/firebase_service.dart';
 
 class WasherReportsScreen extends StatefulWidget {
+  const WasherReportsScreen({super.key});
+
   @override
   _WasherReportsScreenState createState() => _WasherReportsScreenState();
 }
@@ -54,7 +56,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       body: Column(
         children: [
           // Filters Section
-          Container(
+          SizedBox(
             height: 200,
             child: SingleChildScrollView(
               child: Card(
@@ -154,7 +156,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     }
 
     return DropdownButtonFormField<String>(
-      value: _selectedWasherId,
+      initialValue: _selectedWasherId,
       decoration: InputDecoration(
         labelText: 'Filter by Washer',
         border: OutlineInputBorder(),
@@ -177,7 +179,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               style: TextStyle(fontSize: 14),
             ),
           );
-        }).toList(),
+        }),
       ],
       onChanged: (value) {
         setState(() {
@@ -344,7 +346,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
+                    SizedBox(
                       width: double.infinity,
                       child: Text(
                         washer.name,
@@ -510,7 +512,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           style: TextStyle(fontSize: 12),
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: Container(
+        trailing: SizedBox(
           width: 60,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -534,16 +536,14 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         ),
         children: [
           Divider(height: 1),
-          ...report.carWashes
-              .map((carWash) => _buildCarWashItem(carWash))
-              .toList(),
+          ...report.carWashes.map((carWash) => _buildCarWashItem(carWash)),
         ],
       ),
     );
   }
 
   Widget _buildCarWashItem(CarWash carWash) {
-    return Container(
+    return SizedBox(
       height: 70,
       child: ListTile(
         dense: true,
@@ -557,7 +557,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           carWash.vehicleType,
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        subtitle: Container(
+        subtitle: SizedBox(
           height: 40, // Fixed height for subtitle area
           child: SingleChildScrollView(
             scrollDirection: Axis.vertical,

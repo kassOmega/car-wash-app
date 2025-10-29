@@ -7,6 +7,8 @@ import '../services/firebase_service.dart';
 import 'edit_customer_screen.dart';
 
 class CustomerManagement extends StatefulWidget {
+  const CustomerManagement({super.key});
+
   @override
   _CustomerManagementState createState() => _CustomerManagementState();
 }
@@ -95,7 +97,7 @@ class _CustomerManagementState extends State<CustomerManagement> {
                     ),
                     SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       decoration: InputDecoration(
                         labelText: 'Customer Type',
                         border: OutlineInputBorder(),
@@ -115,11 +117,11 @@ class _CustomerManagementState extends State<CustomerManagement> {
                     SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: _addCustomer,
-                      child: Text('Add Customer'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                       ),
+                      child: Text('Add Customer'),
                     ),
                   ],
                 ),
