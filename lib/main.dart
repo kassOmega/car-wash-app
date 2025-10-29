@@ -1,45 +1,49 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import 'providers/auth_provider.dart';
 import 'screens/dashboard.dart';
 import 'screens/login_screen.dart';
 import 'services/firebase_service.dart';
 
-const FirebaseOptions defaultFirebaseOptions = FirebaseOptions(
-  apiKey: "AIzaSyAFA1aV5qiFMW_s2IlW7Zrxvr12FLzLeKI",
-  authDomain: "car-wash-management-app-6411d.firebaseapp.com",
-  projectId: "car-wash-management-app-6411d",
-  storageBucket: "car-wash-management-app-6411d.firebasestorage.app",
-  messagingSenderId: "603095949351",
-  appId: "1:603095949351:web:dca06a65e2d21494836e02",
-  measurementId: "G-34CQSWF7ED",
-);
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: defaultFirebaseOptions,
+  final FirebaseOptions defaultFirebaseOptions = FirebaseOptions(
+    apiKey: "AIzaSyAFA1aV5qiFMW_s2IlW7Zrxvr12FLzLeKI",
+    authDomain: "car-wash-management-app-6411d.firebaseapp.com",
+    projectId: "car-wash-management-app-6411d",
+    storageBucket: "car-wash-management-app-6411d.firebasestorage.app",
+    messagingSenderId: "603095949351",
+
+    /// based on platform give the correct app id
+    appId: Platform.isIOS
+        ? "1:603095949351:ios:7e5f047e4308d2be836e02"
+        : kIsWeb
+            ? "1:603095949351:web:dca06a65e2d21494836e02"
+            : throw UnsupportedError(
+                'Unsupported platform for Firebase initialization'),
+    measurementId: "G-34CQSWF7ED",
   );
-  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: defaultFirebaseOptions);
 
-  final firebaseService = FirebaseService();
+  final globalProviders = <SingleChildWidget>[
+    Provider<FirebaseService>(
+      create: (_) => FirebaseService(),
+    ),
+    ChangeNotifierProvider<AuthProvider>(
+      create: (context) => AuthProvider(context.read<FirebaseService>()),
+    ),
+  ];
 
   runApp(
     MultiProvider(
-      providers: [
-        Provider<FirebaseService>(
-          create: (_) => firebaseService,
-        ),
-        ChangeNotifierProvider<AuthProvider>(
-          create: (context) => AuthProvider(
-            Provider.of<FirebaseService>(context, listen: false),
-          ),
-        ),
-      ],
+      providers: globalProviders,
       child: const MyApp(),
     ),
   );
@@ -55,7 +59,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         appBarTheme: const AppBarTheme(
-          color: Colors.blue,
+          backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
         ),
         cardTheme: CardThemeData(

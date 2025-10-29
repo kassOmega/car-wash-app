@@ -16,6 +16,8 @@ import 'washer_management.dart';
 import 'washer_reports.dart';
 
 class Dashboard extends StatelessWidget {
+  const Dashboard({super.key});
+
   @override
   Widget build(BuildContext context) {
     final firebaseService = Provider.of<FirebaseService>(context);
@@ -215,15 +217,18 @@ class Dashboard extends StatelessWidget {
       elevation: 4,
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 40, color: color),
-            SizedBox(height: 10),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 40, color: color),
+              SizedBox(height: 10),
+              Text(title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
         ),
       ),
     );
