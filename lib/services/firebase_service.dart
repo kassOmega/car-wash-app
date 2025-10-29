@@ -542,10 +542,9 @@ class FirebaseService {
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-      print(
-          'Unpaid equipment usage query returned ${snapshot.docs.length} documents'); // Debug
+      // Debug
       return snapshot.docs.map((doc) {
-        print('Document data: ${doc.data()}'); // Debug
+        // Debug
         return EquipmentUsage.fromMap(doc.data());
       }).toList();
     });

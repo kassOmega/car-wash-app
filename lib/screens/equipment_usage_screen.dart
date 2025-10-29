@@ -110,7 +110,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Record Issued Items Usage'),
+        title: Text('Record Issued Items'),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),

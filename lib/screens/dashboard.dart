@@ -177,8 +177,8 @@ class Dashboard extends StatelessWidget {
             MaterialPageRoute(builder: (context) => StoreItemsManagement()));
       }));
 
-      menuItems.add(
-          _buildMenuCard('Equipment Usage', Icons.build, Colors.orange, () {
+      menuItems
+          .add(_buildMenuCard('Issued Items', Icons.build, Colors.orange, () {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => EquipmentUsageScreen()));
       }));
