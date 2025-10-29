@@ -205,8 +205,8 @@ class Dashboard extends StatelessWidget {
 
     return GridView.count(
       crossAxisCount: crossAxisCount,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
       children: menuItems,
     );
   }
