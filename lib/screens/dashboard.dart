@@ -6,9 +6,11 @@ import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 import 'car_wash_entry.dart';
 import 'customer_management.dart';
+import 'equipment_usage_screen.dart';
 import 'expense_tracking.dart';
 import 'prices_list_screen.dart';
 import 'reports.dart';
+import 'store_items_management.dart';
 import 'user_registration.dart';
 import 'washer_management.dart';
 import 'washer_reports.dart';
@@ -161,12 +163,24 @@ class Dashboard extends StatelessWidget {
             MaterialPageRoute(builder: (context) => PricesListScreen()));
       }));
     }
+// In your _buildRoleBasedGrid method, add these for owners/cashiers:
 
     // Owners and Cashiers can track expenses
     if (authProvider.isOwner || authProvider.isCashier) {
       menuItems.add(_buildMenuCard('Expenses', Icons.money_off, Colors.red, () {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => ExpenseTracking()));
+      }));
+      menuItems.add(
+          _buildMenuCard('Store Items', Icons.inventory_2, Colors.blue, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => StoreItemsManagement()));
+      }));
+
+      menuItems.add(
+          _buildMenuCard('Equipment Usage', Icons.build, Colors.orange, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => EquipmentUsageScreen()));
       }));
     }
 

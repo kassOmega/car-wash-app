@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/car_wash.dart';
 import '../models/customer.dart';
+import '../models/equipment_usage.dart';
 import '../models/expense.dart';
 import '../models/price.dart';
+import '../models/store_item.dart';
 import '../models/user_role.dart'; // Make sure to import AppUser
 import '../models/washer.dart';
 
@@ -465,5 +467,114 @@ class FirebaseService {
     } catch (e) {
       return 0;
     }
+  }
+
+  // Store Items Operations
+  Future<void> addStoreItem(StoreItem item) async {
+    await _firestore.collection('store_items').doc(item.id).set(item.toMap());
+  }
+
+  Future<void> updateStoreItem(StoreItem item) async {
+    await _firestore
+        .collection('store_items')
+        .doc(item.id)
+        .update(item.toMap());
+  }
+
+  Future<void> deleteStoreItem(String itemId) async {
+    await _firestore.collection('store_items').doc(itemId).delete();
+  }
+
+  Stream<List<StoreItem>> getStoreItems() {
+    return _firestore.collection('store_items').orderBy('name').snapshots().map(
+        (snapshot) =>
+            snapshot.docs.map((doc) => StoreItem.fromMap(doc.data())).toList());
+  }
+
+  Future<StoreItem?> getStoreItem(String itemId) async {
+    final doc = await _firestore.collection('store_items').doc(itemId).get();
+    if (doc.exists) {
+      return StoreItem.fromMap(doc.data()!);
+    }
+    return null;
+  }
+
+// Equipment Usage Operations
+  Future<void> addEquipmentUsage(EquipmentUsage usage) async {
+    final batch = _firestore.batch();
+
+    // Add the usage record
+    final usageRef = _firestore.collection('equipment_usage').doc(usage.id);
+    batch.set(usageRef, usage.toMap());
+
+    // Update store item stock
+    final itemRef = _firestore.collection('store_items').doc(usage.storeItemId);
+    batch.update(itemRef, {
+      'currentStock': FieldValue.increment(-usage.quantity),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<void> markEquipmentUsageAsPaid(String usageId) async {
+    await _firestore.collection('equipment_usage').doc(usageId).update({
+      'isPaid': true,
+      'paidDate': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<List<EquipmentUsage>> getEquipmentUsageByWasher(String washerId) {
+    return _firestore
+        .collection('equipment_usage')
+        .where('washerId', isEqualTo: washerId)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => EquipmentUsage.fromMap(doc.data()))
+            .toList());
+  }
+
+  Stream<List<EquipmentUsage>> getUnpaidEquipmentUsage() {
+    return _firestore
+        .collection('equipment_usage')
+        .where('isPaid', isEqualTo: false)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) {
+      print(
+          'Unpaid equipment usage query returned ${snapshot.docs.length} documents'); // Debug
+      return snapshot.docs.map((doc) {
+        print('Document data: ${doc.data()}'); // Debug
+        return EquipmentUsage.fromMap(doc.data());
+      }).toList();
+    });
+  }
+
+  Stream<List<EquipmentUsage>> getEquipmentUsageByDateRange(
+      DateTime start, DateTime end) {
+    return _firestore
+        .collection('equipment_usage')
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => EquipmentUsage.fromMap(doc.data()))
+            .toList());
+  }
+
+// Get total outstanding amount for a washer
+  Future<double> getWasherOutstandingAmount(String washerId) async {
+    final snapshot = await _firestore
+        .collection('equipment_usage')
+        .where('washerId', isEqualTo: washerId)
+        .where('isPaid', isEqualTo: false)
+        .get();
+
+    double total = 0;
+    for (final doc in snapshot.docs) {
+      total += doc['totalAmount'] as double;
+    }
+    return total;
   }
 }
