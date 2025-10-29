@@ -5,6 +5,8 @@ import '../models/store_item.dart';
 import '../services/firebase_service.dart';
 
 class StoreItemsManagement extends StatefulWidget {
+  const StoreItemsManagement({super.key});
+
   @override
   _StoreItemsManagementState createState() => _StoreItemsManagementState();
 }
@@ -177,8 +179,9 @@ class _StoreItemsManagementState extends State<StoreItemsManagement> {
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value!.isEmpty) return 'Please enter price';
-                        if (double.tryParse(value) == null)
+                        if (double.tryParse(value) == null) {
                           return 'Please enter valid price';
+                        }
                         return null;
                       },
                     ),
@@ -191,8 +194,9 @@ class _StoreItemsManagementState extends State<StoreItemsManagement> {
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value!.isEmpty) return 'Please enter stock';
-                        if (int.tryParse(value) == null)
+                        if (int.tryParse(value) == null) {
                           return 'Please enter valid number';
+                        }
                         return null;
                       },
                     ),
@@ -206,8 +210,9 @@ class _StoreItemsManagementState extends State<StoreItemsManagement> {
                 keyboardType: TextInputType.number,
                 validator: (value) {
                   if (value!.isEmpty) return 'Please enter minimum stock';
-                  if (int.tryParse(value) == null)
+                  if (int.tryParse(value) == null) {
                     return 'Please enter valid number';
+                  }
                   return null;
                 },
               ),

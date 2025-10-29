@@ -7,8 +7,7 @@ import '../services/firebase_service.dart';
 class EditCustomerScreen extends StatefulWidget {
   final Customer customer;
 
-  const EditCustomerScreen({Key? key, required this.customer})
-      : super(key: key);
+  const EditCustomerScreen({super.key, required this.customer});
 
   @override
   _EditCustomerScreenState createState() => _EditCustomerScreenState();
@@ -201,7 +200,7 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
 
                       // Customer Type Dropdown
                       DropdownButtonFormField<String>(
-                        value: _selectedType,
+                        initialValue: _selectedType,
                         decoration: InputDecoration(
                           labelText: 'Customer Type',
                           border: OutlineInputBorder(),
@@ -249,14 +248,14 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                       // Update Button
                       ElevatedButton(
                         onPressed: _updateCustomer,
-                        child: Text(
-                          'Update Customer',
-                          style: TextStyle(fontSize: 16),
-                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                           minimumSize: Size(double.infinity, 50),
+                        ),
+                        child: Text(
+                          'Update Customer',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
 
@@ -265,13 +264,13 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
                       // Delete Button
                       OutlinedButton(
                         onPressed: _deleteCustomer,
-                        child: Text(
-                          'Delete Customer',
-                          style: TextStyle(color: Colors.red),
-                        ),
                         style: OutlinedButton.styleFrom(
                           minimumSize: Size(double.infinity, 50),
                           side: BorderSide(color: Colors.red),
+                        ),
+                        child: Text(
+                          'Delete Customer',
+                          style: TextStyle(color: Colors.red),
                         ),
                       ),
                     ],

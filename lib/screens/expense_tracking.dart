@@ -5,6 +5,8 @@ import '../models/expense.dart';
 import '../services/firebase_service.dart';
 
 class ExpenseTracking extends StatefulWidget {
+  const ExpenseTracking({super.key});
+
   @override
   _ExpenseTrackingState createState() => _ExpenseTrackingState();
 }
@@ -99,7 +101,7 @@ class _ExpenseTrackingState extends State<ExpenseTracking> {
                     ),
                     SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _selectedCategory,
+                      initialValue: _selectedCategory,
                       decoration: InputDecoration(
                         labelText: 'Category',
                         border: OutlineInputBorder(),
@@ -147,15 +149,15 @@ class _ExpenseTrackingState extends State<ExpenseTracking> {
                     SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: _addExpense,
-                      child: Text(
-                        'Record Expense',
-                        style: TextStyle(fontSize: 16),
-                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
                         minimumSize: Size(double.infinity, 50),
                         elevation: 2,
+                      ),
+                      child: Text(
+                        'Record Expense',
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   ],
@@ -206,11 +208,11 @@ class _ExpenseTrackingState extends State<ExpenseTracking> {
                             onPressed: () {
                               setState(() {});
                             },
-                            child: Text('Retry'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
                             ),
+                            child: Text('Retry'),
                           ),
                         ],
                       ),
@@ -319,7 +321,7 @@ class _ExpenseTrackingState extends State<ExpenseTracking> {
                                       style: TextStyle(color: Colors.grey[600]),
                                     ),
                                     Text(
-                                      '${_formatDate(expense.date)}',
+                                      _formatDate(expense.date),
                                       style: TextStyle(
                                           fontSize: 12, color: Colors.grey),
                                     ),

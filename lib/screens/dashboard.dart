@@ -16,6 +16,8 @@ import 'washer_management.dart';
 import 'washer_reports.dart';
 
 class Dashboard extends StatelessWidget {
+  const Dashboard({super.key});
+
   @override
   Widget build(BuildContext context) {
     final firebaseService = Provider.of<FirebaseService>(context);

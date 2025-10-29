@@ -5,6 +5,8 @@ import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 
 class UserRegistrationScreen extends StatefulWidget {
+  const UserRegistrationScreen({super.key});
+
   @override
   _UserRegistrationScreenState createState() => _UserRegistrationScreenState();
 }
@@ -237,7 +239,7 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
 
                       // Role Selection
                       DropdownButtonFormField<String>(
-                        value: _selectedRole,
+                        initialValue: _selectedRole,
                         decoration: InputDecoration(
                           labelText: 'Role *',
                           border: OutlineInputBorder(),
@@ -301,14 +303,14 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
                       else
                         ElevatedButton(
                           onPressed: _registerUser,
-                          child: Text(
-                            'Register User',
-                            style: TextStyle(fontSize: 16),
-                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                             minimumSize: Size(double.infinity, 50),
+                          ),
+                          child: Text(
+                            'Register User',
+                            style: TextStyle(fontSize: 16),
                           ),
                         ),
                     ],

@@ -7,6 +7,8 @@ import '../models/washer.dart';
 import '../services/firebase_service.dart';
 
 class EquipmentUsageScreen extends StatefulWidget {
+  const EquipmentUsageScreen({super.key});
+
   @override
   _EquipmentUsageScreenState createState() => _EquipmentUsageScreenState();
 }
@@ -136,7 +138,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
                           _washers = snapshot.data!;
                         }
                         return DropdownButtonFormField<String>(
-                          value: _selectedWasherId,
+                          initialValue: _selectedWasherId,
                           decoration: InputDecoration(labelText: 'Washer *'),
                           items: _washers.map((washer) {
                             return DropdownMenuItem(
@@ -159,7 +161,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
                           _items = snapshot.data!;
                         }
                         return DropdownButtonFormField<String>(
-                          value: _selectedItemId,
+                          initialValue: _selectedItemId,
                           decoration: InputDecoration(labelText: 'Item *'),
                           items: _items.map((item) {
                             return DropdownMenuItem(
@@ -186,14 +188,14 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
                     // Record Button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _recordUsage,
-                      child: _isLoading
-                          ? CircularProgressIndicator()
-                          : Text('Record Usage'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                         minimumSize: Size(double.infinity, 50),
                       ),
+                      child: _isLoading
+                          ? CircularProgressIndicator()
+                          : Text('Record Usage'),
                     ),
                   ],
                 ),
@@ -266,18 +268,16 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
                                                 color: Colors.red)),
                                       ],
                                     ),
-                                    ...usages
-                                        .map((usage) => ListTile(
-                                              dense: true,
-                                              leading: Icon(Icons.inventory_2,
-                                                  size: 20),
-                                              title: Text(usage.storeItemName),
-                                              subtitle: Text(
-                                                  'Qty: ${usage.quantity} × ETB ${usage.unitPrice.toStringAsFixed(0)}'),
-                                              trailing: Text(
-                                                  'ETB ${usage.totalAmount.toStringAsFixed(0)}'),
-                                            ))
-                                        .toList(),
+                                    ...usages.map((usage) => ListTile(
+                                          dense: true,
+                                          leading:
+                                              Icon(Icons.inventory_2, size: 20),
+                                          title: Text(usage.storeItemName),
+                                          subtitle: Text(
+                                              'Qty: ${usage.quantity} × ETB ${usage.unitPrice.toStringAsFixed(0)}'),
+                                          trailing: Text(
+                                              'ETB ${usage.totalAmount.toStringAsFixed(0)}'),
+                                        )),
                                     Align(
                                       alignment: Alignment.centerRight,
                                       child: ElevatedButton(
@@ -288,11 +288,11 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
                                                     usage.id);
                                           }
                                         },
-                                        child: Text('Mark as Paid'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green,
                                           foregroundColor: Colors.white,
                                         ),
+                                        child: Text('Mark as Paid'),
                                       ),
                                     ),
                                   ],

@@ -5,6 +5,8 @@ import '../models/price.dart';
 import '../services/firebase_service.dart';
 
 class PricesListScreen extends StatefulWidget {
+  const PricesListScreen({super.key});
+
   @override
   _PricesListScreenState createState() => _PricesListScreenState();
 }
@@ -45,7 +47,9 @@ class _PricesListScreenState extends State<PricesListScreen> {
 
   @override
   void dispose() {
-    _controllers.values.forEach((controller) => controller.dispose());
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     _newVehicleTypeController.dispose();
     _newVehiclePriceController.dispose();
     super.dispose();
@@ -302,11 +306,11 @@ class _PricesListScreenState extends State<PricesListScreen> {
                   children: [
                     ElevatedButton(
                       onPressed: _addNewVehicleType,
-                      child: Text('Add'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
                       ),
+                      child: Text('Add'),
                     ),
                     SizedBox(height: 4),
                     TextButton(
@@ -503,17 +507,17 @@ class _PricesListScreenState extends State<PricesListScreen> {
           if (!_showAddForm)
             FloatingActionButton(
               onPressed: () => setState(() => _showAddForm = true),
-              child: Icon(Icons.add),
               tooltip: 'Add New Vehicle Type',
               backgroundColor: Colors.blue,
               mini: true,
+              child: Icon(Icons.add),
             ),
           SizedBox(height: 8),
           FloatingActionButton(
             onPressed: _resetToDefaultPrices,
-            child: Icon(Icons.refresh),
             tooltip: 'Reset to Default Prices',
             backgroundColor: Colors.amber[700],
+            child: Icon(Icons.refresh),
           ),
         ],
       ),

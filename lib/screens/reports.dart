@@ -11,6 +11,8 @@ import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 
 class Reports extends StatefulWidget {
+  const Reports({super.key});
+
   @override
   _ReportsState createState() => _ReportsState();
 }
@@ -420,11 +422,11 @@ class _ReportsState extends State<Reports> {
                                           SizedBox(height: 8),
                                           ElevatedButton(
                                             onPressed: () => setState(() {}),
-                                            child: Text('Retry'),
                                             style: ElevatedButton.styleFrom(
                                               backgroundColor: Colors.purple,
                                               foregroundColor: Colors.white,
                                             ),
+                                            child: Text('Retry'),
                                           ),
                                         ],
                                       ),

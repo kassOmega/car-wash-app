@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -139,14 +141,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: _submit,
-                            child: Text(
-                              'Sign In',
-                              style: TextStyle(fontSize: 16),
-                            ),
                             style: ElevatedButton.styleFrom(
                               padding: EdgeInsets.symmetric(vertical: 16),
                               backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
+                            ),
+                            child: Text(
+                              'Sign In',
+                              style: TextStyle(fontSize: 16),
                             ),
                           ),
                         ),
