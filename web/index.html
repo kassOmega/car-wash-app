@@ -3,23 +3,96 @@
   <head>
     <meta charset="UTF-8" />
     <meta content="IE=Edge" http-equiv="X-UA-Compatible" />
-    <meta name="description" content="Car Wash Management App" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
 
-    <!-- iOS meta tags -->
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="Car Wash Manager" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <meta name="apple-mobile-web-app-title" content="car_wash_manager" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Car Wash Manager" />
+    <meta
+      name="description"
+      content="Professional Car Wash Management Application"
+    />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="msapplication-TileColor" content="#0175C2" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <meta name="theme-color" content="#0175C2" />
 
     <title>Car Wash Manager</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="manifest" href="manifest.json" />
 
-    <!-- Firebase SDK - Use version 9 for compatibility -->
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="icons/Icon-192.png" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/Icon-192.png" />
+
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 
+    <style>
+      /* Loading screen styles */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: linear-gradient(135deg, #0175c2 0%, #02569b 100%);
+      }
+
+      #loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        flex-direction: column;
+        color: white;
+      }
+
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+      }
+
+      .loading-text {
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Loading Car Wash Manager...</div>
+    </div>
+
     <script>
-      // YOUR FIREBASE CONFIG
+      // Firebase configuration
       const firebaseConfig = {
         apiKey: "AIzaSyAFA1aV5qiFMW_s2IlW7Zrxvr12FLzLeKI",
         authDomain: "car-wash-management-app-6411d.firebaseapp.com",
@@ -31,11 +104,46 @@
       };
 
       // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
-      console.log("Firebase initialized successfully!");
+      try {
+        firebase.initializeApp(firebaseConfig);
+        console.log("Firebase initialized successfully!");
+      } catch (error) {
+        console.error("Firebase initialization error:", error);
+      }
+
+      // Service Worker Registration for PWA
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/sw.js")
+            .then((registration) => {
+              console.log("SW registered: ", registration);
+            })
+            .catch((registrationError) => {
+              console.log("SW registration failed: ", registrationError);
+            });
+        });
+      }
+
+      // Hide loading screen when Flutter is ready
+      window.addEventListener("flutter-first-frame", function () {
+        setTimeout(function () {
+          const loading = document.getElementById("loading");
+          if (loading) {
+            loading.classList.add("hidden");
+          }
+        }, 500);
+      });
+
+      // Fallback: hide loading after 5 seconds
+      setTimeout(function () {
+        const loading = document.getElementById("loading");
+        if (loading && !loading.classList.contains("hidden")) {
+          loading.classList.add("hidden");
+        }
+      }, 5000);
     </script>
-  </head>
-  <body>
+
     <script src="main.dart.js" type="application/javascript"></script>
   </body>
 </html>

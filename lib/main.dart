@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,23 +12,19 @@ import 'services/firebase_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final FirebaseOptions defaultFirebaseOptions = FirebaseOptions(
+  final FirebaseOptions firebaseOptions = FirebaseOptions(
     apiKey: "AIzaSyAFA1aV5qiFMW_s2IlW7Zrxvr12FLzLeKI",
     authDomain: "car-wash-management-app-6411d.firebaseapp.com",
     projectId: "car-wash-management-app-6411d",
     storageBucket: "car-wash-management-app-6411d.firebasestorage.app",
     messagingSenderId: "603095949351",
-
-    /// based on platform give the correct app id
-    appId: Platform.isIOS
-        ? "1:603095949351:ios:7e5f047e4308d2be836e02"
-        : kIsWeb
-            ? "1:603095949351:web:dca06a65e2d21494836e02"
-            : throw UnsupportedError(
-                'Unsupported platform for Firebase initialization'),
+    appId: kIsWeb
+        ? "1:603095949351:web:dca06a65e2d21494836e02"
+        : "1:603095949351:android:your-android-app-id", // Add if needed
     measurementId: "G-34CQSWF7ED",
   );
-  await Firebase.initializeApp(options: defaultFirebaseOptions);
+
+  await Firebase.initializeApp(options: firebaseOptions);
 
   final globalProviders = <SingleChildWidget>[
     Provider<FirebaseService>(
@@ -61,6 +55,7 @@ class MyApp extends StatelessWidget {
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
+          elevation: 0, // Better for PWA
         ),
         cardTheme: CardThemeData(
           shape:
@@ -78,11 +73,22 @@ class MyApp extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            minimumSize: const Size(120, 48), // Better touch targets for PWA
           ),
         ),
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       home: const AuthWrapper(),
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaleFactor:
+                MediaQuery.of(context).textScaleFactor.clamp(0.8, 1.2),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }
@@ -105,10 +111,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkAuthState() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    // Wait a moment for auth state to initialize
-    await Future.delayed(Duration(milliseconds: 500));
-
+    await Future.delayed(const Duration(milliseconds: 500));
     setState(() {
       _isLoading = false;
     });
@@ -121,31 +124,43 @@ class _AuthWrapperState extends State<AuthWrapper> {
     if (_isLoading) {
       return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (authProvider.user == null) {
-      return LoginScreen();
-    }
-
-    // Only show Dashboard if we have both user and appUser data
-    if (authProvider.appUser == null) {
-      return Scaffold(
-        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Loading user profile...'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading Car Wash Manager...',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
         ),
       );
     }
 
-    return Dashboard();
+    if (authProvider.user == null) {
+      return const LoginScreen();
+    }
+
+    if (authProvider.appUser == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Loading user profile...',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return const Dashboard();
   }
 }
