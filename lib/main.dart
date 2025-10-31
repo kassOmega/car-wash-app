@@ -20,7 +20,7 @@ void main() async {
     messagingSenderId: "603095949351",
     appId: kIsWeb
         ? "1:603095949351:web:dca06a65e2d21494836e02"
-        : "1:603095949351:android:your-android-app-id", // Add if needed
+        : "1:603095949351:android:809c41a7897ecf4c836e02", // Add if needed
     measurementId: "G-34CQSWF7ED",
   );
 
