@@ -1,5 +1,4 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -18,9 +17,7 @@ void main() async {
     projectId: "car-wash-management-app-6411d",
     storageBucket: "car-wash-management-app-6411d.firebasestorage.app",
     messagingSenderId: "603095949351",
-    appId: kIsWeb
-        ? "1:603095949351:web:dca06a65e2d21494836e02"
-        : "1:603095949351:android:809c41a7897ecf4c836e02", // Add if needed
+    appId: "1:603095949351:web:dca06a65e2d21494836e02",
     measurementId: "G-34CQSWF7ED",
   );
 
