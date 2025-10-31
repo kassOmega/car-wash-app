@@ -512,20 +512,30 @@ class FirebaseService {
 
 // Equipment Usage Operations
   Future<void> addEquipmentUsage(EquipmentUsage usage) async {
-    final batch = _firestore.batch();
+    try {
+      final batch = _firestore.batch();
 
-    // Add the usage record
-    final usageRef = _firestore.collection('equipment_usage').doc(usage.id);
-    batch.set(usageRef, usage.toMap());
+      // Add the usage record
+      final usageRef = _firestore.collection('equipment_usage').doc(usage.id);
+      batch.set(usageRef, usage.toMap());
 
-    // Update store item stock
-    final itemRef = _firestore.collection('store_items').doc(usage.storeItemId);
-    batch.update(itemRef, {
-      'currentStock': FieldValue.increment(-usage.quantity),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      // Update store item stock - cashier needs read access to store_items
+      final itemRef =
+          _firestore.collection('store_items').doc(usage.storeItemId);
+      batch.update(itemRef, {
+        'currentStock': FieldValue.increment(-usage.quantity),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    await batch.commit();
+      await batch.commit();
+    } catch (e) {
+      // Provide more specific error handling
+      if (e.toString().contains('PERMISSION_DENIED')) {
+        throw Exception(
+            'Permission denied. Please check your user permissions.');
+      }
+      rethrow;
+    }
   }
 
   Future<void> markEquipmentUsageAsPaid(String usageId) async {

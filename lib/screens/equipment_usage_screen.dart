@@ -59,6 +59,7 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
     try {
       final firebaseService =
           Provider.of<FirebaseService>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       final selectedWasher =
           _washers.firstWhere((w) => w.id == _selectedWasherId);
@@ -108,7 +109,8 @@ class _EquipmentUsageScreenState extends State<EquipmentUsageScreen> {
 
       if (e.toString().contains('PERMISSION_DENIED')) {
         errorMessage =
-            'Permission denied. Please check your user role permissions.';
+            'Permission denied. Cashiers can register issued items but cannot delete them. '
+            'Please contact owner if you need additional permissions.';
       } else if (e.toString().contains('not-found')) {
         errorMessage =
             'Item or washer not found. Please refresh and try again.';
