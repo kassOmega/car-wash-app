@@ -71,52 +71,82 @@ class Dashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Today's summary (visible to all)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Today\'s Summary',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Column(
-                              children: [
-                                Text(
-                                  '$todayCount',
-                                  style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blue),
-                                ),
-                                Text('Vehicles Washed'),
-                              ],
-                            ),
-                            Column(
-                              children: [
-                                Text(
-                                  'ETB ${todayRevenue.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green),
-                                ),
-                                Text('Revenue'),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
+                // Today's summary (visible only to Owner and Washer, hidden from Cashier)
+                if (authProvider.isOwner || authProvider.isWasher) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Today\'s Summary',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              Column(
+                                children: [
+                                  Text(
+                                    '$todayCount',
+                                    style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue),
+                                  ),
+                                  Text('Vehicles Washed'),
+                                ],
+                              ),
+                              Column(
+                                children: [
+                                  Text(
+                                    'ETB ${todayRevenue.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green),
+                                  ),
+                                  Text('Revenue'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 20),
+                  SizedBox(height: 20),
+                ],
+
+                // Welcome message for Cashier (instead of summary)
+                if (authProvider.isCashier) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        children: [
+                          Icon(Icons.local_car_wash,
+                              size: 48, color: Colors.blue),
+                          SizedBox(height: 10),
+                          Text(
+                            'Welcome, ${authProvider.appUser?.name}!',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 5),
+                          Text(
+                            'Ready to record car washes and manage operations',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                ],
 
                 // Role-based menu grid
                 Expanded(
@@ -165,7 +195,6 @@ class Dashboard extends StatelessWidget {
             MaterialPageRoute(builder: (context) => PricesListScreen()));
       }));
     }
-// In your _buildRoleBasedGrid method, add these for owners/cashiers:
 
     // Owners and Cashiers can track expenses
     if (authProvider.isOwner || authProvider.isCashier) {
@@ -186,21 +215,28 @@ class Dashboard extends StatelessWidget {
       }));
     }
 
-    if (authProvider.isOwner || authProvider.isCashier) {
+    if (authProvider.isOwner) {
       menuItems.add(
           _buildMenuCard('Washer Reports', Icons.assignment, Colors.teal, () {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => WasherReportsScreen()));
       }));
+      menuItems
+          .add(_buildMenuCard('Reports', Icons.analytics, Colors.purple, () {
+        Navigator.push(
+            context, MaterialPageRoute(builder: (context) => Reports()));
+      }));
     }
 
-    // All roles can view reports (but with different data access)
-    menuItems.add(_buildMenuCard('Reports', Icons.analytics, Colors.purple, () {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => Reports()));
-    }));
+    // Washer-specific menu items
+    if (authProvider.isWasher) {
+      menuItems
+          .add(_buildMenuCard('My Reports', Icons.assignment, Colors.teal, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => WasherReportsScreen()));
+      }));
+    }
 
-    // Adjust grid count based on number of items
     int crossAxisCount = menuItems.length <= 4 ? 2 : 3;
 
     return GridView.count(

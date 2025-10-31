@@ -130,6 +130,10 @@ class FirebaseService {
             snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
   }
 
+  Future<void> deleteCarWash(String carWashId) async {
+    await _firestore.collection('car_washes').doc(carWashId).delete();
+  }
+
   Stream<List<CarWash>> getCarWashesByWasherAndDateRange(
       String washerId, DateTime start, DateTime end) {
     return _firestore
@@ -187,6 +191,13 @@ class FirebaseService {
             carWash.date.isBefore(end.add(Duration(days: 1)));
       }).toList();
     });
+  }
+
+  Future<void> updateCarWash(CarWash carWash) async {
+    await _firestore
+        .collection('car_washes')
+        .doc(carWash.id)
+        .update(carWash.toMap());
   }
 
 // Washer update method
