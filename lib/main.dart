@@ -108,10 +108,27 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   Future<void> _checkAuthState() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await Future.delayed(const Duration(milliseconds: 500));
-    setState(() {
-      _isLoading = false;
-    });
+
+    // Wait for initial auth state
+    await Future.delayed(const Duration(milliseconds: 2000));
+
+    // Add timeout to prevent infinite loading
+    await Future.any([
+      Future.delayed(const Duration(seconds: 10)),
+      _waitForProfileLoad(authProvider),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _waitForProfileLoad(AuthProvider authProvider) async {
+    while (authProvider.profileLoading && mounted) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   @override
@@ -130,6 +147,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 'Loading Car Wash Manager...',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
+              if (authProvider.error != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Error: ${authProvider.error}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.red,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
           ),
         ),
@@ -152,6 +179,21 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 'Loading user profile...',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
+              if (authProvider.error != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Profile Error: ${authProvider.error}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.red,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => authProvider.clearError(),
+                  child: const Text('Continue Anyway'),
+                ),
+              ],
             ],
           ),
         ),

@@ -8,6 +8,8 @@ class AuthProvider with ChangeNotifier {
   final FirebaseService _firebaseService;
   User? _user;
   AppUser? _appUser;
+  bool _profileLoading = false;
+  String? _error;
 
   AuthProvider(this._firebaseService) {
     _firebaseService.authStateChanges.listen((user) {
@@ -16,6 +18,8 @@ class AuthProvider with ChangeNotifier {
         _loadUserProfile();
       } else {
         _appUser = null;
+        _profileLoading = false;
+        _error = null;
       }
       notifyListeners();
     });
@@ -27,14 +31,33 @@ class AuthProvider with ChangeNotifier {
   bool get isOwner => _appUser?.isOwner ?? false;
   bool get isCashier => _appUser?.isCashier ?? false;
   bool get isWasher => _appUser?.isWasher ?? false;
+  bool get profileLoading => _profileLoading;
+  String? get error => _error;
 
   Future<void> _loadUserProfile() async {
     if (_user != null) {
       try {
+        _profileLoading = true;
+        _error = null;
+        notifyListeners();
+
         _appUser = await _firebaseService.getUserProfile(_user!.uid);
 
+        if (_appUser == null) {
+          _error = 'User profile not found';
+          if (kDebugMode) {
+            print('❌ User profile not found for UID: ${_user!.uid}');
+          }
+        }
+      } catch (e) {
+        _error = 'Failed to load user profile: $e';
+        if (kDebugMode) {
+          print('❌ Error loading user profile: $e');
+        }
+      } finally {
+        _profileLoading = false;
         notifyListeners();
-      } catch (e) {}
+      }
     }
   }
 
@@ -45,26 +68,44 @@ class AuthProvider with ChangeNotifier {
     required String name,
     String? phone,
   }) async {
-    await _firebaseService.signUpWithRole(
-      email: email,
-      password: password,
-      role: role,
-      name: name,
-      phone: phone,
-    );
-    if (_user != null) {
-      await _loadUserProfile();
+    try {
+      _error = null;
+      await _firebaseService.signUpWithRole(
+        email: email,
+        password: password,
+        role: role,
+        name: name,
+        phone: phone,
+      );
+      if (_user != null) {
+        await _loadUserProfile();
+      }
+    } catch (e) {
+      _error = 'Sign up failed: $e';
+      rethrow;
     }
   }
 
   Future<void> signIn(String email, String password) async {
-    await _firebaseService.signIn(email, password);
-    if (_user != null) {
-      await _loadUserProfile();
+    try {
+      _error = null;
+      await _firebaseService.signIn(email, password);
+      if (_user != null) {
+        await _loadUserProfile();
+      }
+    } catch (e) {
+      _error = 'Sign in failed: $e';
+      rethrow;
     }
   }
 
   Future<void> signOut() async {
     await _firebaseService.signOut();
+    _error = null;
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 }
