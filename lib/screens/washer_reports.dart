@@ -56,12 +56,12 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
-        // MADE THE WHOLE PAGE SCROLLABLE
         child: Column(
           children: [
             // Filters Section
             Card(
               margin: EdgeInsets.all(16),
+              color: Colors.blue[50],
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -425,8 +425,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                     SizedBox(height: 16),
                     Container(
                       constraints: BoxConstraints(
-                        minHeight: 60,
-                        maxHeight: 80,
+                        maxHeight: MediaQuery.of(context).size.height * 0.6,
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -453,8 +452,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                     if (authProvider.isOwner || authProvider.isCashier)
                       Container(
                         constraints: BoxConstraints(
-                          minHeight: 40,
-                          maxHeight: 50,
+                          maxHeight: MediaQuery.of(context).size.height * 0.6,
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -584,6 +582,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     );
   }
 
+  // Update the _buildWasherReportCard method:
+
   Widget _buildWasherReportCard(
       WasherReport report, AuthProvider authProvider, List<Washer> washers) {
     final averageCommission =
@@ -593,62 +593,87 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       margin: EdgeInsets.symmetric(vertical: 8),
       child: ExpansionTile(
         tilePadding: EdgeInsets.symmetric(horizontal: 12),
-        leading: CircleAvatar(
-          radius: 16,
-          backgroundColor: Colors.blue,
-          child: Text(
-            report.washer.name.isNotEmpty
-                ? report.washer.name[0].toUpperCase()
-                : '?',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+        leading: Container(
+          width: 32,
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.blue,
+            child: Text(
+              report.washer.name.isNotEmpty
+                  ? report.washer.name[0].toUpperCase()
+                  : '?',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
         ),
         title: Text(
           report.washer.name,
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${report.vehicleCount} vehicles • ETB ${report.totalRevenue.toStringAsFixed(2)}',
+          '${report.vehicleCount} vehicles • ETB ${report.totalRevenue.toStringAsFixed(0)}',
           style: TextStyle(fontSize: 12),
+          maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: SizedBox(
-          width: authProvider.isWasher ? 80 : 120,
+        trailing: Container(
+          width: 80,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'ETB ${report.commission.toStringAsFixed(2)}',
+                'ETB ${report.commission.toStringAsFixed(0)}',
                 style: TextStyle(
                   color: Colors.orange,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               Text(
                 'Commission',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
+                maxLines: 1,
               ),
               if (!authProvider.isWasher)
                 Text(
-                  'ETB ${averageCommission.toStringAsFixed(2)} avg',
+                  'ETB ${averageCommission.toStringAsFixed(0)} avg',
                   style: TextStyle(fontSize: 8, color: Colors.green),
+                  maxLines: 1,
                 ),
             ],
           ),
         ),
         children: [
           Divider(height: 1),
-          ...report.carWashes.map((carWash) {
-            return _buildCarWashItem(carWash, washers);
-          }),
+          // FIX: Add constraints to prevent overflow
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight:
+                  MediaQuery.of(context).size.height * 0.4, // Limit height
+            ),
+            child: SingleChildScrollView(
+              // Add scrolling for many items
+              physics: AlwaysScrollableScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...report.carWashes.map((carWash) {
+                    return _buildCarWashItem(carWash, washers);
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -658,7 +683,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     final responsibleWasher = washers.firstWhere(
       (w) => w.id == carWash.washerId,
       orElse: () => Washer(
-        id: carWash.washerId,
+        id: '',
         name: 'Unknown Washer',
         phone: '',
         percentage: 0,
@@ -667,13 +692,12 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       ),
     );
 
-    // Get participant washer names
     final participantNames = carWash.participantWasherIds.map((id) {
       final washer = washers.firstWhere(
         (w) => w.id == id,
         orElse: () => Washer(
           id: id,
-          name: 'Unknown Washer',
+          name: 'Unknown',
           phone: '',
           percentage: 0,
           isActive: false,
@@ -694,55 +718,86 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       child: ListTile(
         dense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: Icon(
-          _getVehicleIcon(carWash.vehicleType),
-          color: Colors.blue,
-          size: 20,
+        leading: Container(
+          width: 40, // FIX: Constrain leading width
+          child: Icon(
+            _getVehicleIcon(carWash.vehicleType),
+            color: Colors.blue,
+          ),
         ),
         title: Text(
           carWash.vehicleType,
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Responsible: ${responsibleWasher.name}'),
+            Text(
+              'Responsible: ${responsibleWasher.name}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             if (participantNames.isNotEmpty)
-              Text('Helpers: ${participantNames.join(", ")}'),
+              Text(
+                'Helpers: ${participantNames.join(", ")}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             if (carWash.plateNumber != null && carWash.plateNumber!.isNotEmpty)
-              Text('Plate: ${carWash.plateNumber}'),
-            Text(DateFormat('MMM dd, HH:mm').format(carWash.date)),
+              Text(
+                'Plate: ${carWash.plateNumber}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            Text(
+              DateFormat('MMM dd, HH:mm').format(carWash.date),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
             if (carWash.notes != null && carWash.notes!.isNotEmpty)
-              Text('Notes: ${carWash.notes!}'),
+              Text(
+                'Notes: ${carWash.notes!}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              'ETB ${commission.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.orange,
-                fontSize: 12,
+        trailing: Container(
+          width: 100, // FIX: Constrain trailing width
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'ETB ${commission.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                  fontSize: 12,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Text(
-              '${responsibleWasher.percentage}%',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey,
+              Text(
+                '${responsibleWasher.percentage}%',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey,
+                ),
+                maxLines: 1,
               ),
-            ),
-            Text(
-              'ETB ${carWash.amount.toStringAsFixed(2)}',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.green,
+              Text(
+                'ETB ${carWash.amount.toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.green,
+                ),
+                maxLines: 1,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

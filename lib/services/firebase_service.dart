@@ -5,6 +5,7 @@ import '../models/car_wash.dart';
 import '../models/customer.dart';
 import '../models/equipment_usage.dart';
 import '../models/expense.dart';
+import '../models/money_collection.dart';
 import '../models/price.dart';
 import '../models/store_item.dart';
 import '../models/user_role.dart'; // Make sure to import AppUser
@@ -596,5 +597,55 @@ class FirebaseService {
       total += doc['totalAmount'] as double;
     }
     return total;
+  }
+
+  // Money Collection Operations
+  Future<void> addMoneyCollection(MoneyCollection collection) async {
+    await _firestore
+        .collection('money_collections')
+        .doc(collection.id)
+        .set(collection.toMap());
+  }
+
+  Stream<List<MoneyCollection>> getMoneyCollections() {
+    return _firestore
+        .collection('money_collections')
+        .orderBy('collectionDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => MoneyCollection.fromMap(doc.data()))
+            .toList());
+  }
+
+  Stream<List<MoneyCollection>> getMoneyCollectionsByDateRange(
+      DateTime start, DateTime end) {
+    return _firestore
+        .collection('money_collections')
+        .where('collectionDate',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('collectionDate', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .orderBy('collectionDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => MoneyCollection.fromMap(doc.data()))
+            .toList());
+  }
+
+// Get total collected amount for a specific date
+  Future<double> getTotalCollectedForDate(DateTime date) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    final snapshot = await _firestore
+        .collection('money_collections')
+        .where('collectionDate',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('collectionDate',
+            isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
+        .get();
+
+    return snapshot.docs.fold(0.0, (sum, doc) {
+      return (sum as double) + (doc['totalAmount'] as num).toDouble();
+    });
   }
 }

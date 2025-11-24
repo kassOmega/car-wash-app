@@ -36,6 +36,8 @@ class _CarWashEntryState extends State<CarWashEntry> {
   bool _isDeleting = false;
   bool _isUpdating = false;
   String? _updatingCarWashId;
+  bool _isMarkingDone = false;
+  String? _markingDoneCarWashId;
 
   @override
   void initState() {
@@ -218,6 +220,46 @@ class _CarWashEntryState extends State<CarWashEntry> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _markAsDone(CarWash carWash) async {
+    setState(() {
+      _isMarkingDone = true;
+      _markingDoneCarWashId = carWash.id;
+    });
+
+    try {
+      final firebaseService =
+          Provider.of<FirebaseService>(context, listen: false);
+
+      final updatedCarWash = carWash.copyWith(
+        status: 'completed',
+        completedAt: DateTime.now(),
+      );
+
+      await firebaseService.updateCarWash(updatedCarWash);
+
+      await _loadTodayCarWashes();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Car wash marked as completed!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error marking as done: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isMarkingDone = false;
+        _markingDoneCarWashId = null;
+      });
     }
   }
 
@@ -598,58 +640,58 @@ class _CarWashEntryState extends State<CarWashEntry> {
           final authProvider =
               Provider.of<AuthProvider>(context, listen: false);
 
-          return Container(
+          final isMarkingThisDone =
+              _isMarkingDone && _markingDoneCarWashId == carWash.id;
+          final isCompleted = carWash.isCompleted;
+
+          return Card(
             margin: EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: Colors.blue[100],
                 child: Icon(Icons.local_car_wash, color: Colors.blue[800]),
               ),
               title: Text(
-                carWash.vehicleType,
+                '${carWash.vehicleType} - ETB ${carWash.amount.toStringAsFixed(0)}',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                      'Responsible: ${_getWasherName(carWash.washerId, washers)}'),
+                  Text('Plate: ${carWash.plateNumber ?? "No Plate"}'),
+                  Text('Washer: ${_getWasherName(carWash.washerId, washers)}'),
                   if (carWash.participantWasherIds.isNotEmpty)
                     Text(
                         'Helpers: ${_getWasherNames(carWash.participantWasherIds, washers)}'),
-                  if (carWash.plateNumber != null)
-                    Text('Plate: ${carWash.plateNumber}'),
-                  Text('Time: ${_formatTime(carWash.date)}'),
+                  Text('Started: ${_formatTime(carWash.date)}'),
+                  if (carWash.isCompleted && carWash.completedAt != null)
+                    Text('Completed: ${_formatTime(carWash.completedAt!)}'),
+                  if (carWash.duration != null)
+                    Text('Duration: ${_formatDuration(carWash.duration!)}'),
                   if (carWash.notes != null) Text('Notes: ${carWash.notes}'),
                 ],
               ),
-              trailing: isUpdatingThisCarWash || _isDeleting
+              trailing: isMarkingThisDone
                   ? CircularProgressIndicator()
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'ETB ${carWash.amount.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green[800],
+                        if (!isCompleted) ...[
+                          IconButton(
+                            icon: Icon(Icons.check, color: Colors.green),
+                            onPressed: () => _markAsDone(carWash),
+                            tooltip: 'Mark as Done',
                           ),
-                        ),
-                        SizedBox(width: 8),
+                          SizedBox(width: 8),
+                        ],
                         IconButton(
                           icon: Icon(Icons.edit, color: Colors.orange),
                           onPressed: () => _loadCarWashIntoForm(carWash),
-                          tooltip: 'Update record',
                         ),
                         if (authProvider.isOwner)
                           IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _deleteCarWash(carWash.id),
-                            tooltip: 'Delete record',
                           ),
                       ],
                     ),
@@ -658,6 +700,17 @@ class _CarWashEntryState extends State<CarWashEntry> {
         }).toList(),
       ],
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+
+    if (hours > 0) {
+      return '${hours}h ${minutes}m';
+    } else {
+      return '${minutes}m';
+    }
   }
 
   @override

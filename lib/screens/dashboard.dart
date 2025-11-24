@@ -5,9 +5,12 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 import 'car_wash_entry.dart';
+import 'car_washes_list_screen.dart';
 import 'customer_management.dart';
 import 'equipment_usage_screen.dart';
 import 'expense_tracking.dart';
+import 'issued_items_list_screen.dart';
+import 'money_collection_screen.dart';
 import 'prices_list_screen.dart';
 import 'reports.dart';
 import 'store_items_management.dart';
@@ -213,6 +216,16 @@ class Dashboard extends StatelessWidget {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => EquipmentUsageScreen()));
       }));
+      menuItems.add(
+          _buildMenuCard('Car Washes List', Icons.list_alt, Colors.blue, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => CarWashesListScreen()));
+      }));
+      menuItems.add(_buildMenuCard(
+          'Issued Items List', Icons.inventory_2, Colors.orange, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => IssuedItemsListScreen()));
+      }));
     }
 
     if (authProvider.isOwner) {
@@ -225,6 +238,11 @@ class Dashboard extends StatelessWidget {
           .add(_buildMenuCard('Reports', Icons.analytics, Colors.purple, () {
         Navigator.push(
             context, MaterialPageRoute(builder: (context) => Reports()));
+      }));
+      menuItems.add(_buildMenuCard(
+          'Collect Money', Icons.account_balance_wallet, Colors.green, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => MoneyCollectionScreen()));
       }));
     }
 
