@@ -23,7 +23,8 @@ class _CarWashEntryState extends State<CarWashEntry> {
   final _notesController = TextEditingController();
 
   String? _selectedCustomerId;
-  String? _selectedWasherId;
+  String? _selectedWasherId; // Responsible washer
+  List<String> _selectedParticipantWasherIds = []; // Participant washers
   String _vehicleType = 'Car';
   List<Price> _prices = [];
 
@@ -103,7 +104,8 @@ class _CarWashEntryState extends State<CarWashEntry> {
       final carWash = CarWash(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         customerId: _selectedCustomerId,
-        washerId: _selectedWasherId!,
+        washerId: _selectedWasherId!, // Responsible washer
+        participantWasherIds: _selectedParticipantWasherIds, // Participants
         vehicleType: _vehicleType,
         amount: amount,
         date: DateTime.now(),
@@ -117,12 +119,14 @@ class _CarWashEntryState extends State<CarWashEntry> {
       try {
         await firebaseService.addCarWash(carWash);
 
+        // Clear form
         _amountController.clear();
         _plateNumberController.clear();
         _notesController.clear();
         setState(() {
           _selectedCustomerId = null;
           _selectedWasherId = null;
+          _selectedParticipantWasherIds.clear();
         });
 
         _updateAmountForVehicleType(_vehicleType);
@@ -170,6 +174,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
           id: carWash.id,
           customerId: _selectedCustomerId,
           washerId: _selectedWasherId!,
+          participantWasherIds: _selectedParticipantWasherIds,
           vehicleType: _vehicleType,
           amount: double.tryParse(_amountController.text) ?? 0.0,
           date: carWash.date, // Keep original date
@@ -221,6 +226,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
       _updatingCarWashId = carWash.id;
       _selectedCustomerId = carWash.customerId;
       _selectedWasherId = carWash.washerId;
+      _selectedParticipantWasherIds = List.from(carWash.participantWasherIds);
       _vehicleType = carWash.vehicleType;
       _amountController.text = carWash.amount.toStringAsFixed(0);
       _plateNumberController.text = carWash.plateNumber ?? '';
@@ -299,6 +305,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
     setState(() {
       _selectedCustomerId = null;
       _selectedWasherId = null;
+      _selectedParticipantWasherIds.clear();
       _vehicleType = 'Car';
       _updatingCarWashId = null;
     });
@@ -309,7 +316,6 @@ class _CarWashEntryState extends State<CarWashEntry> {
     return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  // Helper method to get washer name from washers list
   String _getWasherName(String washerId, List<Washer> washers) {
     try {
       if (washers.isEmpty) return 'Loading...';
@@ -318,6 +324,203 @@ class _CarWashEntryState extends State<CarWashEntry> {
     } catch (e) {
       return 'Unknown Washer';
     }
+  }
+
+  String _getWasherNames(List<String> washerIds, List<Washer> washers) {
+    try {
+      if (washers.isEmpty) return 'Loading...';
+      final washerNames = washerIds.map((washerId) {
+        final washer = washers.firstWhere((w) => w.id == washerId);
+        return washer.name;
+      }).toList();
+      return washerNames.join(', ');
+    } catch (e) {
+      return 'Unknown Washers';
+    }
+  }
+
+  Widget _buildWasherSelection(List<Washer> washers) {
+    if (washers.isEmpty) {
+      return Card(
+        color: Colors.orange[50],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'No washers available. Please add washers first.',
+            style: TextStyle(color: Colors.orange[800]),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          value: _selectedWasherId,
+          decoration: InputDecoration(
+            labelText: 'Responsible Washer *',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.local_car_wash),
+            errorText: _selectedWasherId == null
+                ? 'Please select a responsible washer'
+                : null,
+          ),
+          items: [
+            DropdownMenuItem<String>(
+              value: null,
+              enabled: false,
+              child: Text('Select responsible washer',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+            ...washers.map((washer) {
+              return DropdownMenuItem<String>(
+                value: washer.id,
+                child: Text('${washer.name} (${washer.percentage}%)'),
+              );
+            }),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedWasherId = value;
+              // Remove the selected responsible washer from participants if they were there
+              if (value != null) {
+                _selectedParticipantWasherIds.remove(value);
+              }
+            });
+          },
+          validator: (value) =>
+              value == null ? 'Please select a responsible washer' : null,
+        ),
+        SizedBox(height: 8),
+        Text(
+          'The responsible washer receives the commission',
+          style: TextStyle(
+              fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildParticipantWashersSelection(List<Washer> washers) {
+    // Filter out the responsible washer from participant options
+    final availableWashers =
+        washers.where((washer) => washer.id != _selectedWasherId).toList();
+
+    if (availableWashers.isEmpty) {
+      return SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 16),
+        Text(
+          'Participant Washers (Helpers) - Optional',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[600],
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Other washers who helped with this car wash',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        SizedBox(height: 8),
+
+        // Multi-select dropdown for participant washers
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: ExpansionTile(
+            title: Text(
+              _selectedParticipantWasherIds.isEmpty
+                  ? 'Select participant washers'
+                  : '${_selectedParticipantWasherIds.length} washers selected',
+              style: TextStyle(
+                color: _selectedParticipantWasherIds.isEmpty
+                    ? Colors.grey
+                    : Colors.black,
+              ),
+            ),
+            children: [
+              Container(
+                height: 200, // Fixed height for scrollable content
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: availableWashers.length,
+                  itemBuilder: (context, index) {
+                    final washer = availableWashers[index];
+                    final isSelected =
+                        _selectedParticipantWasherIds.contains(washer.id);
+
+                    return CheckboxListTile(
+                      title: Text(washer.name),
+                      subtitle: Text('${washer.percentage}% commission rate'),
+                      value: isSelected,
+                      onChanged: (value) {
+                        setState(() {
+                          if (value == true) {
+                            _selectedParticipantWasherIds.add(washer.id);
+                          } else {
+                            _selectedParticipantWasherIds.remove(washer.id);
+                          }
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Show selected participants summary
+        if (_selectedParticipantWasherIds.isNotEmpty) ...[
+          SizedBox(height: 12),
+          Card(
+            color: Colors.green[50],
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selected Participants:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[800],
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: _selectedParticipantWasherIds.map((id) {
+                      final washer = washers.firstWhere((w) => w.id == id);
+                      return Chip(
+                        label: Text(washer.name),
+                        backgroundColor: Colors.blue[100],
+                        deleteIcon: Icon(Icons.close, size: 16),
+                        onDeleted: () {
+                          setState(() {
+                            _selectedParticipantWasherIds.remove(id);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Widget _buildTodayWashesList(List<Washer> washers) {
@@ -413,7 +616,11 @@ class _CarWashEntryState extends State<CarWashEntry> {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Washer: ${_getWasherName(carWash.washerId, washers)}'),
+                  Text(
+                      'Responsible: ${_getWasherName(carWash.washerId, washers)}'),
+                  if (carWash.participantWasherIds.isNotEmpty)
+                    Text(
+                        'Helpers: ${_getWasherNames(carWash.participantWasherIds, washers)}'),
                   if (carWash.plateNumber != null)
                     Text('Plate: ${carWash.plateNumber}'),
                   Text('Time: ${_formatTime(carWash.date)}'),
@@ -433,13 +640,11 @@ class _CarWashEntryState extends State<CarWashEntry> {
                           ),
                         ),
                         SizedBox(width: 8),
-                        // Update Button - Available for both Owner and Cashier
                         IconButton(
                           icon: Icon(Icons.edit, color: Colors.orange),
                           onPressed: () => _loadCarWashIntoForm(carWash),
                           tooltip: 'Update record',
                         ),
-                        // Delete Button - Only for Owner
                         if (authProvider.isOwner)
                           IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
@@ -497,299 +702,261 @@ class _CarWashEntryState extends State<CarWashEntry> {
             ),
         ],
       ),
-      body: StreamBuilder<List<Washer>>(
-        stream: firebaseService.getWashers(),
-        builder: (context, washersSnapshot) {
-          if (washersSnapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Loading washers...'),
-                ],
-              ),
-            );
-          }
-
-          if (washersSnapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error, size: 64, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Error loading washers'),
-                  SizedBox(height: 8),
-                  Text(
-                    washersSnapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+      body: SingleChildScrollView(
+        // MADE THE WHOLE PAGE SCROLLABLE
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: StreamBuilder<List<Washer>>(
+            stream: firebaseService.getWashers(),
+            builder: (context, washersSnapshot) {
+              if (washersSnapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading washers...'),
+                    ],
                   ),
-                ],
-              ),
-            );
-          }
+                );
+              }
 
-          final washers = washersSnapshot.data ?? [];
+              if (washersSnapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error, size: 64, color: Colors.red),
+                      SizedBox(height: 16),
+                      Text('Error loading washers'),
+                      SizedBox(height: 8),
+                      Text(
+                        washersSnapshot.error.toString(),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                // Form Section
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _updatingCarWashId != null
-                                ? 'Update Car Wash'
-                                : 'Record New Car Wash',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+              final washers = washersSnapshot.data ?? [];
+
+              return Column(
+                children: [
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _updatingCarWashId != null
+                                  ? 'Update Car Wash'
+                                  : 'Record New Car Wash',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 16),
+                            SizedBox(height: 16),
 
-                          // Customer Selection
-                          if (authProvider.isOwner ||
-                              authProvider.isCashier) ...[
-                            StreamBuilder<List<Customer>>(
-                              stream: firebaseService.getCustomers(),
-                              builder: (context, snapshot) {
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
+                            // Customer Selection
+                            if (authProvider.isOwner ||
+                                authProvider.isCashier) ...[
+                              StreamBuilder<List<Customer>>(
+                                stream: firebaseService.getCustomers(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return DropdownButtonFormField<String>(
+                                      decoration: InputDecoration(
+                                        labelText: 'Loading customers...',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      items: [],
+                                      onChanged: (value) {},
+                                    );
+                                  }
+                                  _customers = snapshot.data ?? [];
                                   return DropdownButtonFormField<String>(
+                                    value: _selectedCustomerId,
                                     decoration: InputDecoration(
-                                      labelText: 'Loading customers...',
+                                      labelText: 'Customer (Optional)',
                                       border: OutlineInputBorder(),
+                                      prefixIcon: Icon(Icons.person),
                                     ),
-                                    items: [],
-                                    onChanged: (value) {},
+                                    items: [
+                                      DropdownMenuItem<String>(
+                                        value: null,
+                                        child: Text('No Customer - Walk-in'),
+                                      ),
+                                      ..._customers.map((customer) {
+                                        return DropdownMenuItem<String>(
+                                          value: customer.id,
+                                          child: Text(customer.name),
+                                        );
+                                      }),
+                                    ],
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedCustomerId = value;
+                                      });
+                                    },
                                   );
+                                },
+                              ),
+                              SizedBox(height: 16),
+                            ],
+
+                            // Responsible Washer Selection
+                            _buildWasherSelection(washers),
+
+                            // Participant Washers Selection
+                            _buildParticipantWashersSelection(washers),
+
+                            SizedBox(height: 16),
+
+                            // Vehicle Type
+                            StreamBuilder<List<Price>>(
+                              stream: firebaseService.getPrices(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  _prices = snapshot.data!;
                                 }
-                                _customers = snapshot.data ?? [];
                                 return DropdownButtonFormField<String>(
-                                  value: _selectedCustomerId,
+                                  value: _vehicleType,
                                   decoration: InputDecoration(
-                                    labelText: 'Customer (Optional)',
+                                    labelText: 'Vehicle Type *',
                                     border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.person),
+                                    prefixIcon: Icon(Icons.directions_car),
                                   ),
-                                  items: [
-                                    DropdownMenuItem<String>(
-                                      value: null,
-                                      child: Text('No Customer - Walk-in'),
-                                    ),
-                                    ..._customers.map((customer) {
-                                      return DropdownMenuItem<String>(
-                                        value: customer.id,
-                                        child: Text(customer.name),
-                                      );
-                                    }),
-                                  ],
+                                  items: _prices.map((price) {
+                                    return DropdownMenuItem<String>(
+                                      value: price.vehicleType,
+                                      child: Text(price.vehicleType),
+                                    );
+                                  }).toList(),
                                   onChanged: (value) {
                                     setState(() {
-                                      _selectedCustomerId = value;
+                                      _vehicleType = value!;
                                     });
+                                    _updateAmountForVehicleType(value!);
                                   },
                                 );
                               },
                             ),
                             SizedBox(height: 16),
-                          ],
 
-                          // Washer Selection
-                          if (washers.isEmpty) ...[
-                            Card(
-                              color: Colors.orange[50],
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Text(
-                                  'No washers available. Please add washers first.',
-                                  style: TextStyle(color: Colors.orange[800]),
-                                ),
-                              ),
-                            ),
-                          ] else ...[
-                            DropdownButtonFormField<String>(
-                              value: _selectedWasherId,
+                            // Plate Number
+                            TextFormField(
+                              controller: _plateNumberController,
                               decoration: InputDecoration(
-                                labelText: 'Washer *',
+                                labelText: 'Plate Number (Optional)',
                                 border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.local_car_wash),
-                                errorText: _selectedWasherId == null
-                                    ? 'Please select a washer'
-                                    : null,
+                                prefixIcon: Icon(Icons.confirmation_number),
                               ),
-                              items: [
-                                DropdownMenuItem<String>(
-                                  value: null,
-                                  enabled: false,
-                                  child: Text('Select a washer',
-                                      style: TextStyle(color: Colors.grey)),
+                              textCapitalization: TextCapitalization.characters,
+                            ),
+                            SizedBox(height: 16),
+
+                            // Amount
+                            TextFormField(
+                              controller: _amountController,
+                              decoration: InputDecoration(
+                                labelText: 'Amount *',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.attach_money),
+                                suffixIcon: IconButton(
+                                  icon: Icon(Icons.refresh),
+                                  onPressed: () =>
+                                      _updateAmountForVehicleType(_vehicleType),
+                                  tooltip: 'Reset to default price',
                                 ),
-                                ...washers.map((washer) {
-                                  return DropdownMenuItem<String>(
-                                    value: washer.id,
-                                    child: Text(washer.name),
-                                  );
-                                }),
-                              ],
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedWasherId = value;
-                                });
+                              ),
+                              keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true),
+                              validator: (value) {
+                                if (value == null || value.isEmpty)
+                                  return 'Please enter amount';
+                                final amount = double.tryParse(value);
+                                if (amount == null)
+                                  return 'Please enter valid amount';
+                                if (amount <= 0)
+                                  return 'Amount must be greater than 0';
+                                return null;
                               },
-                              validator: (value) => value == null
-                                  ? 'Please select a washer'
-                                  : null,
+                            ),
+                            SizedBox(height: 16),
+
+                            // Notes
+                            TextFormField(
+                              controller: _notesController,
+                              decoration: InputDecoration(
+                                labelText: 'Notes (Optional)',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.note),
+                              ),
+                              maxLines: 3,
+                            ),
+                            SizedBox(height: 24),
+
+                            // Submit/Update Button
+                            ElevatedButton(
+                              onPressed: (_isSubmitting || _isUpdating)
+                                  ? null
+                                  : () {
+                                      if (_updatingCarWashId != null) {
+                                        final carWashToUpdate = _todayCarWashes
+                                            .firstWhere((carWash) =>
+                                                carWash.id ==
+                                                _updatingCarWashId);
+                                        _updateCarWash(carWashToUpdate);
+                                      } else {
+                                        _submitCarWash();
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _updatingCarWashId != null
+                                    ? Colors.orange
+                                    : Colors.blue,
+                                foregroundColor: Colors.white,
+                                minimumSize: Size(double.infinity, 50),
+                              ),
+                              child: (_isSubmitting || _isUpdating)
+                                  ? Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        CircularProgressIndicator(
+                                            color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text(_isUpdating
+                                            ? 'Updating...'
+                                            : 'Recording...'),
+                                      ],
+                                    )
+                                  : Text(_updatingCarWashId != null
+                                      ? 'Update Car Wash'
+                                      : 'Record Car Wash'),
                             ),
                           ],
-                          SizedBox(height: 16),
-
-                          // Vehicle Type
-                          StreamBuilder<List<Price>>(
-                            stream: firebaseService.getPrices(),
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                _prices = snapshot.data!;
-                              }
-                              return DropdownButtonFormField<String>(
-                                value: _vehicleType,
-                                decoration: InputDecoration(
-                                  labelText: 'Vehicle Type *',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.directions_car),
-                                ),
-                                items: _prices.map((price) {
-                                  return DropdownMenuItem<String>(
-                                    value: price.vehicleType,
-                                    child: Text(price.vehicleType),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _vehicleType = value!;
-                                  });
-                                  _updateAmountForVehicleType(value!);
-                                },
-                              );
-                            },
-                          ),
-                          SizedBox(height: 16),
-
-                          // Plate Number
-                          TextFormField(
-                            controller: _plateNumberController,
-                            decoration: InputDecoration(
-                              labelText: 'Plate Number (Optional)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.confirmation_number),
-                            ),
-                            textCapitalization: TextCapitalization.characters,
-                          ),
-                          SizedBox(height: 16),
-
-                          // Amount
-                          TextFormField(
-                            controller: _amountController,
-                            decoration: InputDecoration(
-                              labelText: 'Amount *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.attach_money),
-                              suffixIcon: IconButton(
-                                icon: Icon(Icons.refresh),
-                                onPressed: () =>
-                                    _updateAmountForVehicleType(_vehicleType),
-                                tooltip: 'Reset to default price',
-                              ),
-                            ),
-                            keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
-                            validator: (value) {
-                              if (value == null || value.isEmpty)
-                                return 'Please enter amount';
-                              final amount = double.tryParse(value);
-                              if (amount == null)
-                                return 'Please enter valid amount';
-                              if (amount <= 0)
-                                return 'Amount must be greater than 0';
-                              return null;
-                            },
-                          ),
-                          SizedBox(height: 16),
-
-                          // Notes
-                          TextFormField(
-                            controller: _notesController,
-                            decoration: InputDecoration(
-                              labelText: 'Notes (Optional)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.note),
-                            ),
-                            maxLines: 3,
-                          ),
-                          SizedBox(height: 24),
-
-                          // Submit/Update Button
-                          ElevatedButton(
-                            onPressed: (_isSubmitting || _isUpdating)
-                                ? null
-                                : () {
-                                    if (_updatingCarWashId != null) {
-                                      // Find the car wash being updated
-                                      final carWashToUpdate = _todayCarWashes
-                                          .firstWhere((carWash) =>
-                                              carWash.id == _updatingCarWashId);
-                                      _updateCarWash(carWashToUpdate);
-                                    } else {
-                                      _submitCarWash();
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _updatingCarWashId != null
-                                  ? Colors.orange
-                                  : Colors.blue,
-                              foregroundColor: Colors.white,
-                              minimumSize: Size(double.infinity, 50),
-                            ),
-                            child: (_isSubmitting || _isUpdating)
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      CircularProgressIndicator(
-                                          color: Colors.white),
-                                      SizedBox(width: 8),
-                                      Text(_isUpdating
-                                          ? 'Updating...'
-                                          : 'Recording...'),
-                                    ],
-                                  )
-                                : Text(_updatingCarWashId != null
-                                    ? 'Update Car Wash'
-                                    : 'Record Car Wash'),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: 20),
+                  SizedBox(height: 20),
 
-                // Today's Washes List - Now has access to the washers from the parent StreamBuilder
-                _buildTodayWashesList(washers),
-              ],
-            ),
-          );
-        },
+                  // Today's Washes List
+                  _buildTodayWashesList(washers),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }

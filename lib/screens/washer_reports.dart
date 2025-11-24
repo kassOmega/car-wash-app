@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/car_wash.dart';
 import '../models/washer.dart';
+import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
 
 class WasherReportsScreen extends StatefulWidget {
@@ -38,7 +39,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     if (picked != null && picked != _selectedDateRange) {
       setState(() {
         _selectedDateRange = picked;
-        _errorMessage = null; // Clear error when changing date range
+        _errorMessage = null;
       });
     }
   }
@@ -46,6 +47,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final firebaseService = Provider.of<FirebaseService>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -53,89 +55,87 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: Column(
-        children: [
-          // Filters Section
-          SizedBox(
-            height: 200,
-            child: SingleChildScrollView(
-              child: Card(
-                margin: EdgeInsets.all(16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Date Range Selector
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(Icons.calendar_today,
-                            color: Colors.blue, size: 20),
-                        title: Text(
-                          'Date Range',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        subtitle: _selectedDateRange == null
-                            ? Text('Select date range',
-                                style: TextStyle(fontSize: 12))
-                            : Text(
-                                '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                        trailing: Icon(Icons.arrow_drop_down, size: 20),
-                        onTap: () => _selectDateRange(context),
+      body: SingleChildScrollView(
+        // MADE THE WHOLE PAGE SCROLLABLE
+        child: Column(
+          children: [
+            // Filters Section
+            Card(
+              margin: EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Date Range Selector
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.calendar_today,
+                          color: Colors.blue, size: 20),
+                      title: Text(
+                        'Date Range',
+                        style: TextStyle(fontSize: 14),
                       ),
-                      Divider(height: 20),
-                      // Washer Filter
-                      StreamBuilder<List<Washer>>(
-                        stream: firebaseService.getWashers(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasData) {
-                            _allWashers = snapshot.data!;
-                          }
-                          if (snapshot.hasError) {}
-                          return _buildWasherDropdown();
-                        },
-                      ),
-                    ],
-                  ),
+                      subtitle: _selectedDateRange == null
+                          ? Text('Select date range',
+                              style: TextStyle(fontSize: 12))
+                          : Text(
+                              '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                      trailing: Icon(Icons.arrow_drop_down, size: 20),
+                      onTap: () => _selectDateRange(context),
+                    ),
+                    Divider(height: 20),
+                    // Washer Filter
+                    StreamBuilder<List<Washer>>(
+                      stream: firebaseService.getWashers(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          _allWashers = snapshot.data!;
+                        }
+                        if (snapshot.hasError) {
+                          // Handle error silently
+                        }
+                        return _buildWasherDropdown(authProvider);
+                      },
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-          // Error Message
-          if (_errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Card(
-                color: Colors.red[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      Icon(Icons.error, color: Colors.red),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: TextStyle(color: Colors.red),
+            // Error Message
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Card(
+                  color: Colors.red[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          // Reports List
-          Expanded(
-            child: _buildReportsContent(firebaseService),
-          ),
-        ],
+            // Reports List
+            _buildReportsContent(firebaseService, authProvider),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildWasherDropdown() {
+  Widget _buildWasherDropdown(AuthProvider authProvider) {
     final uniqueWashers = _allWashers
         .fold<Map<String, Washer>>({}, (map, washer) {
           if (!map.containsKey(washer.id)) {
@@ -146,6 +146,15 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         .values
         .toList();
 
+    // If current user is a washer, automatically select themselves
+    if (authProvider.isWasher && _selectedWasherId == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedWasherId = authProvider.user?.uid;
+        });
+      });
+    }
+
     if (_selectedWasherId != null &&
         !uniqueWashers.any((washer) => washer.id == _selectedWasherId)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -153,6 +162,34 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           _selectedWasherId = null;
         });
       });
+    }
+
+    // If user is washer, don't show dropdown - automatically show their reports
+    if (authProvider.isWasher) {
+      final currentWasher = uniqueWashers.firstWhere(
+        (washer) => washer.id == authProvider.user?.uid,
+        orElse: () => Washer(
+          id: '',
+          name: 'Unknown Washer',
+          phone: '',
+          percentage: 0,
+          isActive: false,
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.person, color: Colors.blue, size: 20),
+        title: Text(
+          'Washer',
+          style: TextStyle(fontSize: 14),
+        ),
+        subtitle: Text(
+          currentWasher.name,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+      );
     }
 
     return DropdownButtonFormField<String>(
@@ -184,15 +221,19 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       onChanged: (value) {
         setState(() {
           _selectedWasherId = value;
-          _errorMessage = null; // Clear error when changing washer
+          _errorMessage = null;
         });
       },
     );
   }
 
-  Widget _buildReportsContent(FirebaseService firebaseService) {
+  Widget _buildReportsContent(
+      FirebaseService firebaseService, AuthProvider authProvider) {
     if (_selectedDateRange == null) {
-      return Center(child: Text('Please select a date range'));
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Center(child: Text('Please select a date range')),
+      );
     }
 
     final startDate = _selectedDateRange!.start;
@@ -219,18 +260,18 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               adjustedEndDate,
             ),
       builder: (context, snapshot) {
-        if (snapshot.hasError) {}
-        if (snapshot.hasData) {}
-
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Loading reports...'),
-              ],
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading reports...'),
+                ],
+              ),
             ),
           );
         }
@@ -238,7 +279,6 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         if (snapshot.hasError) {
           final error = snapshot.error.toString();
 
-          // Set the error message for display
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
@@ -247,32 +287,35 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
             }
           });
 
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 64, color: Colors.red),
-                SizedBox(height: 16),
-                Text(
-                  'Error loading reports',
-                  style: TextStyle(fontSize: 18, color: Colors.red),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Please check the console for details',
-                  style: TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _errorMessage = null;
-                    });
-                  },
-                  child: Text('Retry'),
-                ),
-              ],
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  SizedBox(height: 16),
+                  Text(
+                    'Error loading reports',
+                    style: TextStyle(fontSize: 18, color: Colors.red),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Please check the console for details',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _errorMessage = null;
+                      });
+                    },
+                    child: Text('Retry'),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -280,18 +323,18 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         final carWashes = snapshot.data ?? [];
 
         if (_selectedWasherId != null) {
-          return _buildSingleWasherReport(carWashes, firebaseService);
+          return _buildSingleWasherReport(
+              carWashes, firebaseService, authProvider);
         } else {
-          return _buildAllWashersReport(carWashes, firebaseService);
+          return _buildAllWashersReport(
+              carWashes, firebaseService, authProvider);
         }
       },
     );
   }
 
-  // ... rest of your methods (_buildSingleWasherReport, _buildAllWashersReport, etc.)
-  // Keep the existing methods for building the report UI
-  Widget _buildSingleWasherReport(
-      List<CarWash> carWashes, FirebaseService firebaseService) {
+  Widget _buildSingleWasherReport(List<CarWash> carWashes,
+      FirebaseService firebaseService, AuthProvider authProvider) {
     if (carWashes.isEmpty) {
       return _buildEmptyState();
     }
@@ -330,10 +373,22 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         );
 
         // Calculate totals
-        final totalRevenue =
-            carWashes.fold(0.0, (sum, wash) => sum + wash.amount);
-        final washerCommission = totalRevenue * (washer.percentage / 100);
+        double totalRevenue = 0.0;
+        double washerCommission = 0.0;
+        int totalVehicles = 0;
+
+        for (final wash in carWashes) {
+          totalRevenue += wash.amount;
+          totalVehicles += 1;
+
+          // Get washer's percentage to calculate commission
+          final washerPercentage = washer.percentage;
+          washerCommission += wash.amount * (washerPercentage / 100);
+        }
+
         final ownerRevenue = totalRevenue - washerCommission;
+        final averageCommission =
+            totalVehicles > 0 ? washerCommission / totalVehicles : 0;
 
         return Column(
           children: [
@@ -361,7 +416,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      '${carWashes.length} vehicles washed',
+                      '$totalVehicles vehicles washed',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -379,39 +434,71 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                         children: [
                           Expanded(
                             child: _buildStatCard(
-                              'Total',
+                              'Total Revenue',
                               'ETB ${totalRevenue.toStringAsFixed(2)}',
                               Colors.green,
                             ),
                           ),
                           Expanded(
                             child: _buildStatCard(
-                              'Commission',
+                              'My Commission',
                               'ETB ${washerCommission.toStringAsFixed(2)}',
                               Colors.orange,
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Owner',
-                              'ETB ${ownerRevenue.toStringAsFixed(2)}',
-                              Colors.blue,
                             ),
                           ),
                         ],
                       ),
                     ),
+                    SizedBox(height: 8),
+                    if (authProvider.isOwner || authProvider.isCashier)
+                      Container(
+                        constraints: BoxConstraints(
+                          minHeight: 40,
+                          maxHeight: 50,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                'Owner Share',
+                                'ETB ${ownerRevenue.toStringAsFixed(2)}',
+                                Colors.blue,
+                              ),
+                            ),
+                            Expanded(
+                              child: _buildStatCard(
+                                'Avg/Vehicle',
+                                'ETB ${averageCommission.toStringAsFixed(2)}',
+                                Colors.purple,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
             ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: carWashes.length,
-                itemBuilder: (context, index) {
-                  final carWash = carWashes[index];
-                  return _buildCarWashItem(carWash);
-                },
+            // Car Washes List
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Car Wash Details:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  ...carWashes.map((carWash) {
+                    return _buildCarWashItem(carWash, washers);
+                  }).toList(),
+                ],
               ),
             ),
           ],
@@ -420,8 +507,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     );
   }
 
-  Widget _buildAllWashersReport(
-      List<CarWash> carWashes, FirebaseService firebaseService) {
+  Widget _buildAllWashersReport(List<CarWash> carWashes,
+      FirebaseService firebaseService, AuthProvider authProvider) {
     if (carWashes.isEmpty) {
       return _buildEmptyState();
     }
@@ -436,19 +523,15 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         final washers = washerSnapshot.data ?? [];
 
         // Group car washes by washer
-        final Map<String, List<CarWash>> washerGroups = {};
-        for (final carWash in carWashes) {
-          washerGroups.putIfAbsent(carWash.washerId, () => []);
-          washerGroups[carWash.washerId]!.add(carWash);
-        }
+        final Map<String, WasherReport> washerReports = {};
 
-        // Calculate totals for each washer
-        final List<WasherReport> washerReports = [];
-        washerGroups.forEach((washerId, washes) {
+        for (final carWash in carWashes) {
+          // Only count the responsible washer for commission
+          final responsibleWasherId = carWash.washerId;
           final washer = washers.firstWhere(
-            (w) => w.id == washerId,
+            (w) => w.id == responsibleWasherId,
             orElse: () => Washer(
-              id: washerId,
+              id: responsibleWasherId,
               name: 'Unknown Washer',
               phone: '',
               percentage: 0,
@@ -457,35 +540,57 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
             ),
           );
 
-          final totalRevenue =
-              washes.fold(0.0, (sum, wash) => sum + wash.amount);
-          final commission = totalRevenue * (washer.percentage / 100);
+          if (!washerReports.containsKey(washer.id)) {
+            washerReports[washer.id] = WasherReport(
+              washer: washer,
+              carWashes: [],
+              totalRevenue: 0.0,
+              commission: 0.0,
+              vehicleCount: 0,
+            );
+          }
 
-          washerReports.add(WasherReport(
-            washer: washer,
-            carWashes: washes,
-            totalRevenue: totalRevenue,
-            commission: commission,
-          ));
-        });
+          final report = washerReports[washer.id]!;
+          report.carWashes.add(carWash);
+          report.totalRevenue += carWash.amount;
+          report.commission += carWash.amount * (washer.percentage / 100);
+          report.vehicleCount += 1;
+        }
 
-        // Sort by total revenue (descending)
-        washerReports.sort((a, b) => b.totalRevenue.compareTo(a.totalRevenue));
+        final washerReportList = washerReports.values.toList();
 
-        return ListView.builder(
-          itemCount: washerReports.length,
-          itemBuilder: (context, index) {
-            final report = washerReports[index];
-            return _buildWasherReportCard(report);
-          },
+        // Sort by commission (descending)
+        washerReportList.sort((a, b) => b.commission.compareTo(a.commission));
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Column(
+            children: [
+              Text(
+                'All Washers Report',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              ...washerReportList.map((report) {
+                return _buildWasherReportCard(report, authProvider, washers);
+              }).toList(),
+            ],
+          ),
         );
       },
     );
   }
 
-  Widget _buildWasherReportCard(WasherReport report) {
+  Widget _buildWasherReportCard(
+      WasherReport report, AuthProvider authProvider, List<Washer> washers) {
+    final averageCommission =
+        report.vehicleCount > 0 ? report.commission / report.vehicleCount : 0;
+
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: EdgeInsets.symmetric(vertical: 8),
       child: ExpansionTile(
         tilePadding: EdgeInsets.symmetric(horizontal: 12),
         leading: CircleAvatar(
@@ -508,12 +613,12 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${report.carWashes.length} vehicles • ETB ${report.totalRevenue.toStringAsFixed(2)}',
+          '${report.vehicleCount} vehicles • ETB ${report.totalRevenue.toStringAsFixed(2)}',
           style: TextStyle(fontSize: 12),
           overflow: TextOverflow.ellipsis,
         ),
         trailing: SizedBox(
-          width: 60,
+          width: authProvider.isWasher ? 80 : 120,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -531,23 +636,64 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                 'Commission',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
               ),
+              if (!authProvider.isWasher)
+                Text(
+                  'ETB ${averageCommission.toStringAsFixed(2)} avg',
+                  style: TextStyle(fontSize: 8, color: Colors.green),
+                ),
             ],
           ),
         ),
         children: [
           Divider(height: 1),
-          ...report.carWashes.map((carWash) => _buildCarWashItem(carWash)),
+          ...report.carWashes.map((carWash) {
+            return _buildCarWashItem(carWash, washers);
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildCarWashItem(CarWash carWash) {
-    return SizedBox(
-      height: 70,
+  Widget _buildCarWashItem(CarWash carWash, List<Washer> washers) {
+    final responsibleWasher = washers.firstWhere(
+      (w) => w.id == carWash.washerId,
+      orElse: () => Washer(
+        id: carWash.washerId,
+        name: 'Unknown Washer',
+        phone: '',
+        percentage: 0,
+        isActive: false,
+        createdAt: DateTime.now(),
+      ),
+    );
+
+    // Get participant washer names
+    final participantNames = carWash.participantWasherIds.map((id) {
+      final washer = washers.firstWhere(
+        (w) => w.id == id,
+        orElse: () => Washer(
+          id: id,
+          name: 'Unknown Washer',
+          phone: '',
+          percentage: 0,
+          isActive: false,
+          createdAt: DateTime.now(),
+        ),
+      );
+      return washer.name;
+    }).toList();
+
+    final commission = carWash.amount * (responsibleWasher.percentage / 100);
+
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: ListTile(
         dense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         leading: Icon(
           _getVehicleIcon(carWash.vehicleType),
           color: Colors.blue,
@@ -557,43 +703,46 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           carWash.vehicleType,
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        subtitle: SizedBox(
-          height: 40, // Fixed height for subtitle area
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (carWash.plateNumber != null &&
-                    carWash.plateNumber!.isNotEmpty)
-                  Text(
-                    'Plate: ${carWash.plateNumber}',
-                    style: TextStyle(fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                Text(
-                  DateFormat('MMM dd, HH:mm').format(carWash.date),
-                  style: TextStyle(fontSize: 11),
-                ),
-                if (carWash.notes != null && carWash.notes!.isNotEmpty)
-                  Text(
-                    'Notes: ${carWash.notes!}',
-                    style: TextStyle(fontSize: 10),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-              ],
-            ),
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Responsible: ${responsibleWasher.name}'),
+            if (participantNames.isNotEmpty)
+              Text('Helpers: ${participantNames.join(", ")}'),
+            if (carWash.plateNumber != null && carWash.plateNumber!.isNotEmpty)
+              Text('Plate: ${carWash.plateNumber}'),
+            Text(DateFormat('MMM dd, HH:mm').format(carWash.date)),
+            if (carWash.notes != null && carWash.notes!.isNotEmpty)
+              Text('Notes: ${carWash.notes!}'),
+          ],
         ),
-        trailing: Text(
-          'ETB ${carWash.amount.toStringAsFixed(2)}',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-            fontSize: 14,
-          ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'ETB ${commission.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+                fontSize: 12,
+              ),
+            ),
+            Text(
+              '${responsibleWasher.percentage}%',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+              ),
+            ),
+            Text(
+              'ETB ${carWash.amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.green,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -631,9 +780,9 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -675,13 +824,15 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
 class WasherReport {
   final Washer washer;
   final List<CarWash> carWashes;
-  final double totalRevenue;
-  final double commission;
+  double totalRevenue;
+  double commission;
+  int vehicleCount;
 
   WasherReport({
     required this.washer,
     required this.carWashes,
     required this.totalRevenue,
     required this.commission,
+    required this.vehicleCount,
   });
 }
