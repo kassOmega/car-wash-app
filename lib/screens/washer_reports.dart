@@ -55,81 +55,95 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Filters Section
-            Card(
-              margin: EdgeInsets.all(16),
-              color: Colors.blue[50],
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Date Range Selector
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.calendar_today,
-                          color: Colors.blue, size: 20),
-                      title: Text(
-                        'Date Range',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                      subtitle: _selectedDateRange == null
-                          ? Text('Select date range',
-                              style: TextStyle(fontSize: 12))
-                          : Text(
-                              '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
-                              style: TextStyle(fontSize: 12),
+      body: SafeArea(
+        child: LayoutBuilder(
+          // Use LayoutBuilder for responsive constraints
+          builder: (context, constraints) {
+            return Container(
+              width: constraints.maxWidth,
+              child: Column(
+                children: [
+                  // Filters Section
+                  Card(
+                    margin: EdgeInsets.all(12),
+                    color: Colors.blue[50],
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Date Range Selector
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(Icons.calendar_today,
+                                color: Colors.blue, size: 20),
+                            title: Text(
+                              'Date Range',
+                              style: TextStyle(fontSize: 14),
                             ),
-                      trailing: Icon(Icons.arrow_drop_down, size: 20),
-                      onTap: () => _selectDateRange(context),
-                    ),
-                    Divider(height: 20),
-                    // Washer Filter
-                    StreamBuilder<List<Washer>>(
-                      stream: firebaseService.getWashers(),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData) {
-                          _allWashers = snapshot.data!;
-                        }
-                        if (snapshot.hasError) {
-                          // Handle error silently
-                        }
-                        return _buildWasherDropdown(authProvider);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Error Message
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Card(
-                  color: Colors.red[50],
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error, color: Colors.red),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red),
+                            subtitle: _selectedDateRange == null
+                                ? Text('Select date range',
+                                    style: TextStyle(fontSize: 12))
+                                : Text(
+                                    '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                            trailing: Icon(Icons.arrow_drop_down, size: 20),
+                            onTap: () => _selectDateRange(context),
                           ),
-                        ),
-                      ],
+                          Divider(height: 20),
+                          // Washer Filter
+                          StreamBuilder<List<Washer>>(
+                            stream: firebaseService.getWashers(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                _allWashers = snapshot.data!;
+                              }
+                              if (snapshot.hasError) {
+                                // Handle error silently
+                              }
+                              return _buildWasherDropdown(authProvider);
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
+                  // Error Message
+                  if (_errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Card(
+                        color: Colors.red[50],
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error, color: Colors.red),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  // Reports List
+                  Expanded(
+                    child: Container(
+                      width: constraints.maxWidth,
+                      child:
+                          _buildReportsContent(firebaseService, authProvider),
+                    ),
+                  ),
+                ],
               ),
-            // Reports List
-            _buildReportsContent(firebaseService, authProvider),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -390,7 +404,10 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         final averageCommission =
             totalVehicles > 0 ? washerCommission / totalVehicles : 0;
 
-        return Column(
+        return ListView(
+          // FIX: Use ListView instead of SingleChildScrollView
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
           children: [
             // Summary Card
             Card(
@@ -423,57 +440,47 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    Container(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.6,
-                      ),
-                      child: Row(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: _buildStatCard(
+                            'Total Revenue',
+                            'ETB ${totalRevenue.toStringAsFixed(2)}',
+                            Colors.green,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildStatCard(
+                            'My Commission',
+                            'ETB ${washerCommission.toStringAsFixed(2)}',
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    if (authProvider.isOwner || authProvider.isCashier)
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
                             child: _buildStatCard(
-                              'Total Revenue',
-                              'ETB ${totalRevenue.toStringAsFixed(2)}',
-                              Colors.green,
+                              'Owner Share',
+                              'ETB ${ownerRevenue.toStringAsFixed(2)}',
+                              Colors.blue,
                             ),
                           ),
                           Expanded(
                             child: _buildStatCard(
-                              'My Commission',
-                              'ETB ${washerCommission.toStringAsFixed(2)}',
-                              Colors.orange,
+                              'Avg/Vehicle',
+                              'ETB ${averageCommission.toStringAsFixed(2)}',
+                              Colors.purple,
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    if (authProvider.isOwner || authProvider.isCashier)
-                      Container(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.6,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Expanded(
-                              child: _buildStatCard(
-                                'Owner Share',
-                                'ETB ${ownerRevenue.toStringAsFixed(2)}',
-                                Colors.blue,
-                              ),
-                            ),
-                            Expanded(
-                              child: _buildStatCard(
-                                'Avg/Vehicle',
-                                'ETB ${averageCommission.toStringAsFixed(2)}',
-                                Colors.purple,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                   ],
                 ),
@@ -560,29 +567,19 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         // Sort by commission (descending)
         washerReportList.sort((a, b) => b.commission.compareTo(a.commission));
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Column(
-            children: [
-              Text(
-                'All Washers Report',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 8),
-              ...washerReportList.map((report) {
-                return _buildWasherReportCard(report, authProvider, washers);
-              }).toList(),
-            ],
-          ),
+        return ListView.builder(
+          // FIX: Use ListView.builder instead of SingleChildScrollView
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: washerReportList.length,
+          itemBuilder: (context, index) {
+            return _buildWasherReportCard(
+                washerReportList[index], authProvider, washers);
+          },
         );
       },
     );
   }
-
-  // Update the _buildWasherReportCard method:
 
   Widget _buildWasherReportCard(
       WasherReport report, AuthProvider authProvider, List<Washer> washers) {
@@ -590,7 +587,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         report.vehicleCount > 0 ? report.commission / report.vehicleCount : 0;
 
     return Card(
-      margin: EdgeInsets.symmetric(vertical: 8),
+      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       child: ExpansionTile(
         tilePadding: EdgeInsets.symmetric(horizontal: 12),
         leading: Container(
@@ -610,20 +607,28 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
             ),
           ),
         ),
-        title: Text(
-          report.washer.name,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Container(
+          constraints:
+              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.4),
+          child: Text(
+            report.washer.name,
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        subtitle: Text(
-          '${report.vehicleCount} vehicles • ETB ${report.totalRevenue.toStringAsFixed(0)}',
-          style: TextStyle(fontSize: 12),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        subtitle: Container(
+          constraints:
+              BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.4),
+          child: Text(
+            '${report.vehicleCount} vehicles • ETB ${report.totalRevenue.toStringAsFixed(0)}',
+            style: TextStyle(fontSize: 12),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         trailing: Container(
-          width: 80,
+          width: 75,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
@@ -646,7 +651,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               ),
               if (!authProvider.isWasher)
                 Text(
-                  'ETB ${averageCommission.toStringAsFixed(0)} avg',
+                  'Avg: ETB ${averageCommission.toStringAsFixed(0)}',
                   style: TextStyle(fontSize: 8, color: Colors.green),
                   maxLines: 1,
                 ),
@@ -655,22 +660,23 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         ),
         children: [
           Divider(height: 1),
-          // FIX: Add constraints to prevent overflow
           ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight:
-                  MediaQuery.of(context).size.height * 0.4, // Limit height
+              maxHeight: MediaQuery.of(context).size.height * 0.4,
             ),
             child: SingleChildScrollView(
-              // Add scrolling for many items
               physics: AlwaysScrollableScrollPhysics(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ...report.carWashes.map((carWash) {
-                    return _buildCarWashItem(carWash, washers);
-                  }).toList(),
-                ],
+              child: Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...report.carWashes.map((carWash) {
+                      return _buildCarWashItem(carWash, washers);
+                    }).toList(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -710,24 +716,26 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     final commission = carWash.amount * (responsibleWasher.percentage / 100);
 
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      margin: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey[300]!),
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
         dense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        visualDensity: VisualDensity.compact,
         leading: Container(
-          width: 40, // FIX: Constrain leading width
+          width: 32,
           child: Icon(
             _getVehicleIcon(carWash.vehicleType),
             color: Colors.blue,
+            size: 20,
           ),
         ),
         title: Text(
           carWash.vehicleType,
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -735,37 +743,42 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Responsible: ${responsibleWasher.name}',
+              'Washer: ${responsibleWasher.name}',
+              style: TextStyle(fontSize: 11),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             if (participantNames.isNotEmpty)
               Text(
-                'Helpers: ${participantNames.join(", ")}',
+                'Team: ${participantNames.join(", ")}',
+                style: TextStyle(fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             if (carWash.plateNumber != null && carWash.plateNumber!.isNotEmpty)
               Text(
                 'Plate: ${carWash.plateNumber}',
+                style: TextStyle(fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             Text(
               DateFormat('MMM dd, HH:mm').format(carWash.date),
+              style: TextStyle(fontSize: 10),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             if (carWash.notes != null && carWash.notes!.isNotEmpty)
               Text(
-                'Notes: ${carWash.notes!}',
+                'Note: ${carWash.notes!}',
+                style: TextStyle(fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
         trailing: Container(
-          width: 100, // FIX: Constrain trailing width
+          width: 60,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -775,7 +788,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange,
-                  fontSize: 12,
+                  fontSize: 9,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -783,15 +796,15 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
               Text(
                 '${responsibleWasher.percentage}%',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 8,
                   color: Colors.grey,
                 ),
                 maxLines: 1,
               ),
               Text(
-                'ETB ${carWash.amount.toStringAsFixed(0)}',
+                'Total: ETB ${carWash.amount.toStringAsFixed(0)}',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 7,
                   color: Colors.green,
                 ),
                 maxLines: 1,
