@@ -2,12 +2,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MoneyCollection {
   final String id;
-  final String collectedBy; // Owner UID who collected the money
-  final String collectedByName; // Owner name for display
+  final String collectedBy;
+  final String collectedByName;
   final double totalAmount;
   final DateTime collectionDate;
   final DateTime createdAt;
   final String? notes;
+
+  final double? dailyOwnerShare;
+  final double? equipmentRevenue;
+  final double? totalExpenses;
+  final double? netAmountDue;
+  final double? remainingBalance;
 
   MoneyCollection({
     required this.id,
@@ -17,6 +23,11 @@ class MoneyCollection {
     required this.collectionDate,
     required this.createdAt,
     this.notes,
+    this.dailyOwnerShare,
+    this.equipmentRevenue,
+    this.totalExpenses,
+    this.netAmountDue,
+    this.remainingBalance,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +39,11 @@ class MoneyCollection {
       'collectionDate': Timestamp.fromDate(collectionDate),
       'createdAt': Timestamp.fromDate(createdAt),
       'notes': notes,
+      'dailyOwnerShare': dailyOwnerShare,
+      'equipmentRevenue': equipmentRevenue,
+      'totalExpenses': totalExpenses,
+      'netAmountDue': netAmountDue,
+      'remainingBalance': remainingBalance,
     };
   }
 
@@ -45,6 +61,11 @@ class MoneyCollection {
             ? (map['createdAt'] as Timestamp).toDate()
             : DateTime.now(),
         notes: map['notes']?.toString(),
+        dailyOwnerShare: (map['dailyOwnerShare'] as num?)?.toDouble(),
+        equipmentRevenue: (map['equipmentRevenue'] as num?)?.toDouble(),
+        totalExpenses: (map['totalExpenses'] as num?)?.toDouble(),
+        netAmountDue: (map['netAmountDue'] as num?)?.toDouble(),
+        remainingBalance: (map['remainingBalance'] as num?)?.toDouble(),
       );
     } catch (e) {
       return MoneyCollection(

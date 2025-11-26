@@ -226,6 +226,11 @@ class Dashboard extends StatelessWidget {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => IssuedItemsListScreen()));
       }));
+      menuItems.add(_buildMenuCard(
+          'Collect Money', Icons.account_balance_wallet, Colors.green, () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => MoneyCollectionScreen()));
+      }));
     }
 
     if (authProvider.isOwner) {
@@ -238,11 +243,6 @@ class Dashboard extends StatelessWidget {
           .add(_buildMenuCard('Reports', Icons.analytics, Colors.purple, () {
         Navigator.push(
             context, MaterialPageRoute(builder: (context) => Reports()));
-      }));
-      menuItems.add(_buildMenuCard(
-          'Collect Money', Icons.account_balance_wallet, Colors.green, () {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => MoneyCollectionScreen()));
       }));
     }
 
