@@ -250,6 +250,10 @@ class _UserRegistrationScreenState extends State<UserRegistrationScreen> {
                             value: 'cashier',
                             child: Text('Cashier'),
                           ),
+                          DropdownMenuItem(
+                            value: 'owner',
+                            child: Text('Owner'),
+                          ),
                         ],
                         onChanged: (value) {
                           setState(() {
