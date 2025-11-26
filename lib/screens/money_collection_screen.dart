@@ -24,7 +24,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
 
   // Daily report data
   double _totalOwnerShare = 0.0;
-  double _totalEquipmentRevenue = 0.0; // Sum of both paid and unpaid
+  double _totalEquipmentRevenue = 0.0;
   double _totalExpenses = 0.0;
   double _netAmountDue = 0.0;
   double _previouslyCollected = 0.0;
@@ -51,6 +51,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
     try {
       final firebaseService =
           Provider.of<FirebaseService>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       // Get selected date range
       final startOfDay =
@@ -58,7 +59,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
       final endOfDay = DateTime(_selectedDate.year, _selectedDate.month,
           _selectedDate.day, 23, 59, 59);
 
-      // Fetch data for the selected date
+      // Fetch data for the selected date - cashiers can now read these collections
       final carWashes = await firebaseService
           .getCarWashesByDateRange(startOfDay, endOfDay)
           .first;
@@ -87,7 +88,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
             id: carWash.washerId,
             name: 'Unknown Washer',
             phone: '',
-            percentage: 50.0, // Default percentage
+            percentage: 50.0,
             isActive: true,
             createdAt: DateTime.now(),
           ),
@@ -102,11 +103,11 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
       _totalEquipmentRevenue =
           equipmentUsage.fold(0.0, (sum, usage) => sum + usage.totalAmount);
 
-      // Calculate total expenses
+      // Calculate total expenses - cashiers can now read expenses for calculation
       _totalExpenses =
           expenses.fold(0.0, (sum, expense) => sum + expense.amount);
 
-      // Calculate net amount due to owner (Owner Share + Total Equipment Revenue - Expenses)
+      // Calculate net amount due to owner
       _netAmountDue =
           _totalOwnerShare + _totalEquipmentRevenue - _totalExpenses;
 
@@ -162,13 +163,6 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
       return;
     }
 
-    if (remainingAmount < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Remaining amount cannot be negative')),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     try {
@@ -186,7 +180,8 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
       final collection = MoneyCollection(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         collectedBy: authProvider.user!.uid,
-        collectedByName: authProvider.appUser?.name ?? 'Cashier',
+        collectedByName: authProvider.appUser?.name ??
+            (authProvider.isCashier ? 'Cashier' : 'Owner'),
         totalAmount: collectedAmount,
         collectionDate: _selectedDate,
         createdAt: DateTime.now(),
@@ -241,6 +236,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
 
+    // Both owners and cashiers can access this screen
     if (!authProvider.isOwner && !authProvider.isCashier) {
       return Scaffold(
         appBar: AppBar(title: Text('Access Denied')),
@@ -264,10 +260,13 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
       body: _isCalculating
           ? Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              // MADE THE WHOLE PAGE SCROLLABLE
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  // User Role Info
+
+                  SizedBox(height: 8),
+
                   // Date Selection
                   Card(
                     child: ListTile(
@@ -281,7 +280,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
                   ),
                   SizedBox(height: 16),
 
-                  // Daily Report Summary
+                  // Daily Report Summary - Both can see
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -317,169 +316,175 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
                   ),
                   SizedBox(height: 16),
 
-                  // Collection Form
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Flexible Money Collection',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(height: 16),
-
-                          // Auto-filled Total Income (Read-only)
-                          TextFormField(
-                            initialValue:
-                                'ETB ${_autoTotalIncome.toStringAsFixed(0)}',
-                            decoration: InputDecoration(
-                              labelText: 'Total Available Income *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.attach_money),
-                              filled: true,
-                              fillColor: Colors.blue[50],
+                  // Collection Form - Both can use
+                  if (authProvider.isOwner)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Money Collection',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
                             ),
-                            readOnly: true,
-                            style: TextStyle(
-                              color: Colors.blue,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                            SizedBox(height: 16),
+
+                            // Auto-filled Total Income (Read-only)
+                            TextFormField(
+                              initialValue:
+                                  'ETB ${_autoTotalIncome.toStringAsFixed(0)}',
+                              decoration: InputDecoration(
+                                labelText: 'Total Available Income *',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.attach_money),
+                                filled: true,
+                                fillColor: Colors.blue[50],
+                              ),
+                              readOnly: true,
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
 
-                          SizedBox(height: 16),
+                            SizedBox(height: 16),
 
-                          // Collected Amount (Editable)
-                          TextFormField(
-                            controller: _collectedAmountController,
-                            decoration: InputDecoration(
-                              labelText: 'Amount Actually Collected *',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.money),
-                              hintText: 'Enter the amount you collected',
-                              suffixText: 'ETB',
+                            // Collected Amount (Editable)
+                            TextFormField(
+                              controller: _collectedAmountController,
+                              decoration: InputDecoration(
+                                labelText: 'Amount Actually Collected *',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.money),
+                                hintText: 'Enter the amount you collected',
+                                suffixText: 'ETB',
+                              ),
+                              keyboardType: TextInputType.numberWithOptions(
+                                  decimal: true),
+                              onChanged: (value) => _updateRemainingAmount(),
                             ),
-                            keyboardType:
-                                TextInputType.numberWithOptions(decimal: true),
-                            onChanged: (value) => _updateRemainingAmount(),
-                          ),
 
-                          SizedBox(height: 16),
+                            SizedBox(height: 16),
 
-                          // Auto-calculated Remaining Amount (Read-only)
-                          TextFormField(
-                            controller: _remainingAmountController,
-                            decoration: InputDecoration(
-                              labelText: 'Remaining Amount',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.pending),
-                              filled: true,
-                              fillColor: Colors.orange[50],
+                            // Auto-calculated Remaining Amount (Read-only)
+                            TextFormField(
+                              controller: _remainingAmountController,
+                              decoration: InputDecoration(
+                                labelText: 'Remaining Amount',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.pending),
+                                filled: true,
+                                fillColor: Colors.orange[50],
+                              ),
+                              readOnly: true,
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                            readOnly: true,
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+
+                            SizedBox(height: 16),
+
+                            // Reason for Remaining Amount
+                            TextFormField(
+                              controller: _reasonController,
+                              decoration: InputDecoration(
+                                labelText:
+                                    'Reason for Remaining Amount (Optional)',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.note),
+                                hintText:
+                                    'e.g., Customer will pay tomorrow, partial payment received, etc...',
+                              ),
+                              maxLines: 3,
                             ),
-                          ),
 
-                          SizedBox(height: 16),
+                            SizedBox(height: 16),
 
-                          // Reason for Remaining Amount
-                          TextFormField(
-                            controller: _reasonController,
-                            decoration: InputDecoration(
-                              labelText:
-                                  'Reason for Remaining Amount (Optional)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.note),
-                              hintText:
-                                  'e.g., Customer will pay tomorrow, partial payment received, etc...',
+                            // Collection Summary
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Total Available:',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                      Text(
+                                          'ETB ${_autoTotalIncome.toStringAsFixed(0)}',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Collected:',
+                                          style:
+                                              TextStyle(color: Colors.green)),
+                                      Text(
+                                          'ETB ${(double.tryParse(_collectedAmountController.text) ?? 0.0).toStringAsFixed(0)}',
+                                          style:
+                                              TextStyle(color: Colors.green)),
+                                    ],
+                                  ),
+                                  SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Remaining:',
+                                          style:
+                                              TextStyle(color: Colors.orange)),
+                                      Text(
+                                          'ETB ${(double.tryParse(_remainingAmountController.text) ?? 0.0).toStringAsFixed(0)}',
+                                          style:
+                                              TextStyle(color: Colors.orange)),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                            maxLines: 3,
-                          ),
 
-                          SizedBox(height: 16),
+                            SizedBox(height: 24),
 
-                          // Collection Summary
-                          Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[50],
-                              border: Border.all(color: Colors.grey[300]!),
-                              borderRadius: BorderRadius.circular(8),
+                            // Collect Button
+                            ElevatedButton(
+                              onPressed: (_isLoading || _autoTotalIncome <= 0)
+                                  ? null
+                                  : _collectMoney,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                minimumSize: Size(double.infinity, 50),
+                              ),
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      color: Colors.white)
+                                  : Text('Record Collection'),
                             ),
-                            child: Column(
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('Total Available:',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                    Text(
-                                        'ETB ${_autoTotalIncome.toStringAsFixed(0)}',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                                SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('Collected:',
-                                        style: TextStyle(color: Colors.green)),
-                                    Text(
-                                        'ETB ${(double.tryParse(_collectedAmountController.text) ?? 0.0).toStringAsFixed(0)}',
-                                        style: TextStyle(color: Colors.green)),
-                                  ],
-                                ),
-                                SizedBox(height: 4),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text('Remaining:',
-                                        style: TextStyle(color: Colors.orange)),
-                                    Text(
-                                        'ETB ${(double.tryParse(_remainingAmountController.text) ?? 0.0).toStringAsFixed(0)}',
-                                        style: TextStyle(color: Colors.orange)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: 24),
-
-                          // Collect Button
-                          ElevatedButton(
-                            onPressed: (_isLoading || _autoTotalIncome <= 0)
-                                ? null
-                                : _collectMoney,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              minimumSize: Size(double.infinity, 50),
-                            ),
-                            child: _isLoading
-                                ? CircularProgressIndicator(color: Colors.white)
-                                : Text('Record Collection'),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
                   SizedBox(height: 20),
 
-                  // Recent Collections
-                  _buildRecentCollections(),
+                  // Recent Collections - Both can see
+                  if (authProvider.isOwner) _buildRecentCollections(),
                 ],
               ),
             ),
@@ -521,7 +526,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
         ),
         SizedBox(height: 8),
         Container(
-          height: 300, // Fixed height for the recent collections list
+          height: 300,
           child: StreamBuilder<List<MoneyCollection>>(
             stream: Provider.of<FirebaseService>(context).getMoneyCollections(),
             builder: (context, snapshot) {
