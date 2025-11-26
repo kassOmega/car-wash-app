@@ -123,6 +123,13 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
 
+    if (!authProvider.isOwner) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Access Denied')),
+        body: Center(child: Text('Only owners can collect money')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Money Collection'),
