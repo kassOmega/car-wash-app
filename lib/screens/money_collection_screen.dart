@@ -26,7 +26,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
   double _totalOwnerShare = 0.0;
   double _totalEquipmentRevenue = 0.0;
   double _totalExpenses = 0.0;
-  double _netAmountDue = 0.0;
+  double _netProfit = 0.0;
   double _previouslyCollected = 0.0;
   double _remainingBalance = 0.0;
   double _autoTotalIncome = 0.0;
@@ -107,18 +107,17 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
       _totalExpenses =
           expenses.fold(0.0, (sum, expense) => sum + expense.amount);
 
-      // Calculate net amount due to owner
-      _netAmountDue =
-          _totalOwnerShare + _totalEquipmentRevenue - _totalExpenses;
+      // Calculate net profit (for informational purposes only)
+      _netProfit = _totalOwnerShare + _totalEquipmentRevenue - _totalExpenses;
 
-      // Calculate previously collected amount
+      // Calculate previously collected amount (from owner's share only)
       _previouslyCollected = previousCollections.fold(
           0.0, (sum, collection) => sum + collection.totalAmount);
 
-      // Calculate remaining balance
-      _remainingBalance = _netAmountDue - _previouslyCollected;
+      // Calculate remaining balance (from owner's share only)
+      _remainingBalance = _totalOwnerShare - _previouslyCollected;
 
-      // Auto-filled total income is the remaining balance
+      // Auto-filled total income is the remaining owner's share balance
       _autoTotalIncome = _remainingBalance;
 
       // Initialize controllers with calculated values
@@ -189,7 +188,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
         dailyOwnerShare: _totalOwnerShare,
         equipmentRevenue: _totalEquipmentRevenue,
         totalExpenses: _totalExpenses,
-        netAmountDue: _netAmountDue,
+        netProfit: _netProfit, // Store net profit for reporting
         remainingBalance: remainingAmount,
       );
 
@@ -264,7 +263,6 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
               child: Column(
                 children: [
                   // User Role Info
-
                   SizedBox(height: 8),
 
                   // Date Selection
@@ -301,12 +299,12 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
                               'Total Expenses', _totalExpenses, Colors.red),
                           Divider(),
                           _buildSummaryItem(
-                              'Net Amount Due', _netAmountDue, Colors.green,
+                              'Net Profit', _netProfit, Colors.green,
                               isBold: true),
                           _buildSummaryItem('Previously Collected',
                               _previouslyCollected, Colors.purple),
                           _buildSummaryItem(
-                              'Available to Collect',
+                              'Available to Collect (Owner\'s Share)',
                               _autoTotalIncome,
                               _autoTotalIncome > 0 ? Colors.green : Colors.grey,
                               isBold: true),
@@ -330,12 +328,12 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
                             ),
                             SizedBox(height: 16),
 
-                            // Auto-filled Total Income (Read-only)
+                            // Auto-filled Total Income (Read-only) - Owner's Share only
                             TextFormField(
                               initialValue:
                                   'ETB ${_autoTotalIncome.toStringAsFixed(0)}',
                               decoration: InputDecoration(
-                                labelText: 'Total Available Income *',
+                                labelText: 'Available Owner\'s Share *',
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.attach_money),
                                 filled: true,
@@ -372,7 +370,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
                             TextFormField(
                               controller: _remainingAmountController,
                               decoration: InputDecoration(
-                                labelText: 'Remaining Amount',
+                                labelText: 'Remaining Owner\'s Share',
                                 border: OutlineInputBorder(),
                                 prefixIcon: Icon(Icons.pending),
                                 filled: true,
@@ -418,7 +416,7 @@ class _MoneyCollectionScreenState extends State<MoneyCollectionScreen> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text('Total Available:',
+                                      Text('Available Owner\'s Share:',
                                           style: TextStyle(
                                               fontWeight: FontWeight.bold)),
                                       Text(

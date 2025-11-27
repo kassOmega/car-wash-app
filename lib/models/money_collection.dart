@@ -13,6 +13,7 @@ class MoneyCollection {
   final double? equipmentRevenue;
   final double? totalExpenses;
   final double? netAmountDue;
+  final double? netProfit; // ADD THIS
   final double? remainingBalance;
 
   MoneyCollection({
@@ -27,6 +28,7 @@ class MoneyCollection {
     this.equipmentRevenue,
     this.totalExpenses,
     this.netAmountDue,
+    this.netProfit, // ADD THIS
     this.remainingBalance,
   });
 
@@ -43,6 +45,7 @@ class MoneyCollection {
       'equipmentRevenue': equipmentRevenue,
       'totalExpenses': totalExpenses,
       'netAmountDue': netAmountDue,
+      'netProfit': netProfit, // ADD THIS
       'remainingBalance': remainingBalance,
     };
   }
@@ -65,6 +68,7 @@ class MoneyCollection {
         equipmentRevenue: (map['equipmentRevenue'] as num?)?.toDouble(),
         totalExpenses: (map['totalExpenses'] as num?)?.toDouble(),
         netAmountDue: (map['netAmountDue'] as num?)?.toDouble(),
+        netProfit: (map['netProfit'] as num?)?.toDouble(), // ADD THIS
         remainingBalance: (map['remainingBalance'] as num?)?.toDouble(),
       );
     } catch (e) {

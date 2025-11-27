@@ -56,94 +56,85 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          // Use LayoutBuilder for responsive constraints
-          builder: (context, constraints) {
-            return Container(
-              width: constraints.maxWidth,
-              child: Column(
-                children: [
-                  // Filters Section
-                  Card(
-                    margin: EdgeInsets.all(12),
-                    color: Colors.blue[50],
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Date Range Selector
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(Icons.calendar_today,
-                                color: Colors.blue, size: 20),
-                            title: Text(
-                              'Date Range',
-                              style: TextStyle(fontSize: 14),
-                            ),
-                            subtitle: _selectedDateRange == null
-                                ? Text('Select date range',
-                                    style: TextStyle(fontSize: 12))
-                                : Text(
-                                    '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                            trailing: Icon(Icons.arrow_drop_down, size: 20),
-                            onTap: () => _selectDateRange(context),
+        child: SingleChildScrollView(
+          child: Container(
+            width: MediaQuery.of(context).size.width,
+            child: Column(
+              children: [
+                // Filters Section
+                Card(
+                  margin: EdgeInsets.all(12),
+                  color: Colors.blue[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Date Range Selector
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.calendar_today,
+                              color: Colors.blue, size: 20),
+                          title: Text(
+                            'Date Range',
+                            style: TextStyle(fontSize: 14),
                           ),
-                          Divider(height: 20),
-                          // Washer Filter
-                          StreamBuilder<List<Washer>>(
-                            stream: firebaseService.getWashers(),
-                            builder: (context, snapshot) {
-                              if (snapshot.hasData) {
-                                _allWashers = snapshot.data!;
-                              }
-                              if (snapshot.hasError) {
-                                // Handle error silently
-                              }
-                              return _buildWasherDropdown(authProvider);
-                            },
-                          ),
-                        ],
-                      ),
+                          subtitle: _selectedDateRange == null
+                              ? Text('Select date range',
+                                  style: TextStyle(fontSize: 12))
+                              : Text(
+                                  '${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                          trailing: Icon(Icons.arrow_drop_down, size: 20),
+                          onTap: () => _selectDateRange(context),
+                        ),
+                        Divider(height: 20),
+                        // Washer Filter
+                        StreamBuilder<List<Washer>>(
+                          stream: firebaseService.getWashers(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              _allWashers = snapshot.data!;
+                            }
+                            if (snapshot.hasError) {
+                              // Handle error silently
+                            }
+                            return _buildWasherDropdown(authProvider);
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                  // Error Message
-                  if (_errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Card(
-                        color: Colors.red[50],
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Row(
-                            children: [
-                              Icon(Icons.error, color: Colors.red),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: TextStyle(color: Colors.red),
-                                ),
+                ),
+                // Error Message
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: Card(
+                      color: Colors.red[50],
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error, color: Colors.red),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(color: Colors.red),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  // Reports List
-                  Expanded(
-                    child: Container(
-                      width: constraints.maxWidth,
-                      child:
-                          _buildReportsContent(firebaseService, authProvider),
-                    ),
                   ),
-                ],
-              ),
-            );
-          },
+                // Reports List
+                _buildReportsContent(firebaseService, authProvider),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -404,10 +395,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         final averageCommission =
             totalVehicles > 0 ? washerCommission / totalVehicles : 0;
 
-        return ListView(
-          // FIX: Use ListView instead of SingleChildScrollView
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+        return Column(
+          // CHANGED: Use Column instead of ListView
           children: [
             // Summary Card
             Card(
@@ -567,15 +556,11 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         // Sort by commission (descending)
         washerReportList.sort((a, b) => b.commission.compareTo(a.commission));
 
-        return ListView.builder(
-          // FIX: Use ListView.builder instead of SingleChildScrollView
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: washerReportList.length,
-          itemBuilder: (context, index) {
-            return _buildWasherReportCard(
-                washerReportList[index], authProvider, washers);
-          },
+        return Column(
+          // CHANGED: Use Column instead of ListView.builder
+          children: washerReportList.map((report) {
+            return _buildWasherReportCard(report, authProvider, washers);
+          }).toList(),
         );
       },
     );

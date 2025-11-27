@@ -231,14 +231,14 @@ class Dashboard extends StatelessWidget {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => MoneyCollectionScreen()));
       }));
-    }
-
-    if (authProvider.isOwner) {
       menuItems.add(
           _buildMenuCard('Washer Reports', Icons.assignment, Colors.teal, () {
         Navigator.push(context,
             MaterialPageRoute(builder: (context) => WasherReportsScreen()));
       }));
+    }
+
+    if (authProvider.isOwner) {
       menuItems
           .add(_buildMenuCard('Reports', Icons.analytics, Colors.purple, () {
         Navigator.push(
