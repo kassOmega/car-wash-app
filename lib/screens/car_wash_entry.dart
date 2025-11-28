@@ -381,14 +381,21 @@ class _CarWashEntryState extends State<CarWashEntry> {
     }
   }
 
-  Widget _buildWasherSelection(List<Washer> washers) {
-    if (washers.isEmpty) {
+  // Helper method to filter active washers
+  List<Washer> _getActiveWashers(List<Washer> allWashers) {
+    return allWashers.where((washer) => washer.isActive).toList();
+  }
+
+  Widget _buildWasherSelection(List<Washer> allWashers) {
+    final activeWashers = _getActiveWashers(allWashers);
+
+    if (activeWashers.isEmpty) {
       return Card(
         color: Colors.orange[50],
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Text(
-            'No washers available. Please add washers first.',
+            'No active washers available. Please add or activate washers first.',
             style: TextStyle(color: Colors.orange[800]),
           ),
         ),
@@ -415,7 +422,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
               child: Text('Select responsible washer',
                   style: TextStyle(color: Colors.grey)),
             ),
-            ...washers.map((washer) {
+            ...activeWashers.map((washer) {
               return DropdownMenuItem<String>(
                 value: washer.id,
                 child: Text('${washer.name} (${washer.percentage}%)'),
@@ -444,10 +451,13 @@ class _CarWashEntryState extends State<CarWashEntry> {
     );
   }
 
-  Widget _buildParticipantWashersSelection(List<Washer> washers) {
+  Widget _buildParticipantWashersSelection(List<Washer> allWashers) {
+    final activeWashers = _getActiveWashers(allWashers);
+
     // Filter out the responsible washer from participant options
-    final availableWashers =
-        washers.where((washer) => washer.id != _selectedWasherId).toList();
+    final availableWashers = activeWashers
+        .where((washer) => washer.id != _selectedWasherId)
+        .toList();
 
     if (availableWashers.isEmpty) {
       return SizedBox.shrink();
@@ -543,7 +553,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                     spacing: 8,
                     runSpacing: 4,
                     children: _selectedParticipantWasherIds.map((id) {
-                      final washer = washers.firstWhere((w) => w.id == id);
+                      final washer = allWashers.firstWhere((w) => w.id == id);
                       return Chip(
                         label: Text(washer.name),
                         backgroundColor: Colors.blue[100],
@@ -565,7 +575,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
     );
   }
 
-  Widget _buildTodayWashesList(List<Washer> washers) {
+  Widget _buildTodayWashesList(List<Washer> allWashers) {
     if (_isLoadingTodayWashes) {
       return Card(
         child: Padding(
@@ -659,10 +669,11 @@ class _CarWashEntryState extends State<CarWashEntry> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Plate: ${carWash.plateNumber ?? "No Plate"}'),
-                  Text('Washer: ${_getWasherName(carWash.washerId, washers)}'),
+                  Text(
+                      'Washer: ${_getWasherName(carWash.washerId, allWashers)}'),
                   if (carWash.participantWasherIds.isNotEmpty)
                     Text(
-                        'Helpers: ${_getWasherNames(carWash.participantWasherIds, washers)}'),
+                        'Helpers: ${_getWasherNames(carWash.participantWasherIds, allWashers)}'),
                   Text('Started: ${_formatTime(carWash.date)}'),
                   if (carWash.isCompleted && carWash.completedAt != null)
                     Text('Completed: ${_formatTime(carWash.completedAt!)}'),
@@ -794,7 +805,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                 );
               }
 
-              final washers = washersSnapshot.data ?? [];
+              final allWashers = washersSnapshot.data ?? [];
 
               return Column(
                 children: [
@@ -866,10 +877,10 @@ class _CarWashEntryState extends State<CarWashEntry> {
                             ],
 
                             // Responsible Washer Selection
-                            _buildWasherSelection(washers),
+                            _buildWasherSelection(allWashers),
 
                             // Participant Washers Selection
-                            _buildParticipantWashersSelection(washers),
+                            _buildParticipantWashersSelection(allWashers),
 
                             SizedBox(height: 16),
 
@@ -1004,7 +1015,7 @@ class _CarWashEntryState extends State<CarWashEntry> {
                   SizedBox(height: 20),
 
                   // Today's Washes List
-                  _buildTodayWashesList(washers),
+                  _buildTodayWashesList(allWashers),
                 ],
               );
             },
