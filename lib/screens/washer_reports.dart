@@ -1,3 +1,4 @@
+// washer_reports_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import '../models/car_wash.dart';
 import '../models/washer.dart';
 import '../providers/auth_provider.dart';
 import '../services/firebase_service.dart';
+import '../utils/commission_calculator.dart';
 
 class WasherReportsScreen extends StatefulWidget {
   const WasherReportsScreen({super.key});
@@ -26,7 +28,10 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     // Set default to last 7 days
     final endDate = DateTime.now();
     final startDate = endDate.subtract(Duration(days: 7));
-    _selectedDateRange = DateTimeRange(start: startDate, end: endDate);
+    _selectedDateRange = DateTimeRange(
+      start: DateTime(startDate.year, startDate.month, startDate.day),
+      end: DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59),
+    );
   }
 
   Future<void> _selectDateRange(BuildContext context) async {
@@ -36,9 +41,16 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
       lastDate: DateTime.now(),
       initialDateRange: _selectedDateRange,
     );
+
     if (picked != null && picked != _selectedDateRange) {
       setState(() {
-        _selectedDateRange = picked;
+        // Ensure start date is at beginning of day and end date at end of day
+        _selectedDateRange = DateTimeRange(
+          start:
+              DateTime(picked.start.year, picked.start.month, picked.start.day),
+          end: DateTime(
+              picked.end.year, picked.end.month, picked.end.day, 23, 59, 59),
+        );
         _errorMessage = null;
       });
     }
@@ -244,26 +256,14 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     final startDate = _selectedDateRange!.start;
     final endDate = _selectedDateRange!.end;
 
-    final adjustedEndDate = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-      23,
-      59,
-      59,
-    );
-
     return StreamBuilder<List<CarWash>>(
       stream: _selectedWasherId != null
           ? firebaseService.getCarWashesByWasherAndDateRange(
               _selectedWasherId!,
               startDate,
-              adjustedEndDate,
+              endDate,
             )
-          : firebaseService.getCarWashesByDateRange(
-              startDate,
-              adjustedEndDate,
-            ),
+          : firebaseService.getCarWashesByDateRange(startDate, endDate),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Padding(
@@ -365,38 +365,53 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         }
 
         final washers = washerSnapshot.data ?? [];
-        final washer = washers.firstWhere(
-          (w) => w.id == _selectedWasherId,
-          orElse: () => Washer(
-            id: '',
-            name: 'Unknown Washer',
-            phone: '',
-            percentage: 0,
-            isActive: false,
-            createdAt: DateTime.now(),
-          ),
-        );
+        final washersById = {for (var w in washers) w.id: w};
+        final currentWasher = washersById[_selectedWasherId!] ??
+            Washer(
+              id: _selectedWasherId!,
+              name: 'Unknown Washer',
+              percentage: 0,
+              isActive: false,
+              createdAt: DateTime.now(),
+            );
 
-        // Calculate totals
+        // Calculate totals with new commission calculation
         double totalRevenue = 0.0;
-        double washerCommission = 0.0;
+        double washerTotalCommission = 0.0;
+        double washerCommissionAsMain = 0.0;
+        double washerCommissionAsHelper = 0.0;
         int totalVehicles = 0;
+        int vehiclesAsMain = 0;
+        int vehiclesAsHelper = 0;
 
         for (final wash in carWashes) {
           totalRevenue += wash.amount;
           totalVehicles += 1;
 
-          // Get washer's percentage to calculate commission
-          final washerPercentage = washer.percentage;
-          washerCommission += wash.amount * (washerPercentage / 100);
+          // Calculate commission for this washer in this car wash
+          final commission = CommissionCalculator.calculateWasherCommission(
+            carWash: wash,
+            washerId: _selectedWasherId!,
+            washersById: washersById,
+          );
+
+          washerTotalCommission += commission;
+
+          // Track if washer was main or helper
+          if (wash.washerId == _selectedWasherId!) {
+            vehiclesAsMain += 1;
+            washerCommissionAsMain += commission;
+          } else if (wash.participantWasherIds.contains(_selectedWasherId!)) {
+            vehiclesAsHelper += 1;
+            washerCommissionAsHelper += commission;
+          }
         }
 
-        final ownerRevenue = totalRevenue - washerCommission;
+        final ownerRevenue = totalRevenue - washerTotalCommission;
         final averageCommission =
-            totalVehicles > 0 ? washerCommission / totalVehicles : 0;
+            totalVehicles > 0 ? washerTotalCommission / totalVehicles : 0;
 
         return Column(
-          // CHANGED: Use Column instead of ListView
           children: [
             // Summary Card
             Card(
@@ -410,7 +425,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: Text(
-                        washer.name,
+                        currentWasher.name,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -422,13 +437,30 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                     ),
                     SizedBox(height: 8),
                     Text(
+                      'Commission Rate: ${currentWasher.percentage}%',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
                       '$totalVehicles vehicles washed',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
                       ),
                     ),
+                    if (vehiclesAsMain > 0 || vehiclesAsHelper > 0)
+                      Text(
+                        '($vehiclesAsMain as main, $vehiclesAsHelper as helper)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                        ),
+                      ),
                     SizedBox(height: 16),
+
+                    // Revenue and Commission
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -436,20 +468,50 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Total Revenue',
-                            'ETB ${totalRevenue.toStringAsFixed(2)}',
+                            'ETB ${totalRevenue.toStringAsFixed(0)}',
                             Colors.green,
                           ),
                         ),
                         Expanded(
                           child: _buildStatCard(
                             'My Commission',
-                            'ETB ${washerCommission.toStringAsFixed(2)}',
+                            'ETB ${washerTotalCommission.toStringAsFixed(0)}',
                             Colors.orange,
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: 8),
+
+                    // Breakdown of commission
+                    if (washerCommissionAsMain > 0 &&
+                        washerCommissionAsHelper > 0)
+                      Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: _buildStatCard(
+                                  'As Main Washer',
+                                  'ETB ${washerCommissionAsMain.toStringAsFixed(0)}',
+                                  Colors.blue,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildStatCard(
+                                  'As Helper',
+                                  'ETB ${washerCommissionAsHelper.toStringAsFixed(0)}',
+                                  Colors.purple,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 8),
+                        ],
+                      ),
+
                     if (authProvider.isOwner || authProvider.isCashier)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -458,15 +520,15 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                           Expanded(
                             child: _buildStatCard(
                               'Owner Share',
-                              'ETB ${ownerRevenue.toStringAsFixed(2)}',
-                              Colors.blue,
+                              'ETB ${ownerRevenue.toStringAsFixed(0)}',
+                              Colors.red,
                             ),
                           ),
                           Expanded(
                             child: _buildStatCard(
                               'Avg/Vehicle',
-                              'ETB ${averageCommission.toStringAsFixed(2)}',
-                              Colors.purple,
+                              'ETB ${averageCommission.toStringAsFixed(0)}',
+                              Colors.teal,
                             ),
                           ),
                         ],
@@ -475,6 +537,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                 ),
               ),
             ),
+
             // Car Washes List
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -490,7 +553,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                   ),
                   SizedBox(height: 8),
                   ...carWashes.map((carWash) {
-                    return _buildCarWashItem(carWash, washers);
+                    return _buildCarWashItem(
+                        carWash, washersById, _selectedWasherId!);
                   }).toList(),
                 ],
               ),
@@ -514,41 +578,53 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           return Center(child: CircularProgressIndicator());
         }
 
-        final washers = washerSnapshot.data ?? [];
+        final allWashers = washerSnapshot.data ?? [];
+        final washersById = {for (var w in allWashers) w.id: w};
 
-        // Group car washes by washer
+        // Create a map to track all commissions for each washer
         final Map<String, WasherReport> washerReports = {};
 
         for (final carWash in carWashes) {
-          // Only count the responsible washer for commission
-          final responsibleWasherId = carWash.washerId;
-          final washer = washers.firstWhere(
-            (w) => w.id == responsibleWasherId,
-            orElse: () => Washer(
-              id: responsibleWasherId,
-              name: 'Unknown Washer',
-              phone: '',
-              percentage: 0,
-              isActive: false,
-              createdAt: DateTime.now(),
-            ),
+          // Calculate commissions for all washers involved in this car wash
+          final commissions = CommissionCalculator.calculateAllCommissions(
+            carWash: carWash,
+            washersById: washersById,
           );
 
-          if (!washerReports.containsKey(washer.id)) {
-            washerReports[washer.id] = WasherReport(
-              washer: washer,
-              carWashes: [],
-              totalRevenue: 0.0,
-              commission: 0.0,
-              vehicleCount: 0,
-            );
-          }
+          // Add commissions to each washer's report
+          for (final entry in commissions.entries) {
+            final washerId = entry.key;
+            final commission = entry.value;
 
-          final report = washerReports[washer.id]!;
-          report.carWashes.add(carWash);
-          report.totalRevenue += carWash.amount;
-          report.commission += carWash.amount * (washer.percentage / 100);
-          report.vehicleCount += 1;
+            if (!washerReports.containsKey(washerId)) {
+              final washer = washersById[washerId] ??
+                  Washer(
+                    id: washerId,
+                    name: 'Unknown Washer',
+                    phone: '',
+                    percentage: 0,
+                    isActive: false,
+                    createdAt: DateTime.now(),
+                  );
+              washerReports[washerId] = WasherReport(
+                washer: washer,
+                carWashes: [],
+                totalRevenue: 0.0,
+                commission: 0.0,
+                vehicleCount: 0,
+                commissionDetails: {},
+              );
+            }
+
+            final report = washerReports[washerId]!;
+            report.carWashes.add(carWash);
+            report.totalRevenue += carWash.amount;
+            report.commission += commission;
+            report.vehicleCount += 1;
+
+            // Store individual commission for this car wash
+            report.commissionDetails[carWash.id] = commission;
+          }
         }
 
         final washerReportList = washerReports.values.toList();
@@ -557,17 +633,16 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         washerReportList.sort((a, b) => b.commission.compareTo(a.commission));
 
         return Column(
-          // CHANGED: Use Column instead of ListView.builder
           children: washerReportList.map((report) {
-            return _buildWasherReportCard(report, authProvider, washers);
+            return _buildWasherReportCard(report, authProvider, washersById);
           }).toList(),
         );
       },
     );
   }
 
-  Widget _buildWasherReportCard(
-      WasherReport report, AuthProvider authProvider, List<Washer> washers) {
+  Widget _buildWasherReportCard(WasherReport report, AuthProvider authProvider,
+      Map<String, Washer> washersById) {
     final averageCommission =
         report.vehicleCount > 0 ? report.commission / report.vehicleCount : 0;
 
@@ -606,7 +681,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           constraints:
               BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.4),
           child: Text(
-            '${report.vehicleCount} vehicles • ETB ${report.totalRevenue.toStringAsFixed(0)}',
+            '${report.vehicleCount} vehicles • ${report.washer.percentage}% rate',
             style: TextStyle(fontSize: 12),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -658,7 +733,11 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ...report.carWashes.map((carWash) {
-                      return _buildCarWashItem(carWash, washers);
+                      final commission =
+                          report.commissionDetails[carWash.id] ?? 0.0;
+                      return _buildCarWashItem(
+                          carWash, washersById, report.washer.id,
+                          commission: commission);
                     }).toList(),
                   ],
                 ),
@@ -670,35 +749,48 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
     );
   }
 
-  Widget _buildCarWashItem(CarWash carWash, List<Washer> washers) {
-    final responsibleWasher = washers.firstWhere(
-      (w) => w.id == carWash.washerId,
-      orElse: () => Washer(
-        id: '',
-        name: 'Unknown Washer',
-        phone: '',
-        percentage: 0,
-        isActive: false,
-        createdAt: DateTime.now(),
-      ),
-    );
-
-    final participantNames = carWash.participantWasherIds.map((id) {
-      final washer = washers.firstWhere(
-        (w) => w.id == id,
-        orElse: () => Washer(
-          id: id,
-          name: 'Unknown',
+  Widget _buildCarWashItem(
+      CarWash carWash, Map<String, Washer> washersById, String currentWasherId,
+      {double? commission}) {
+    final responsibleWasher = washersById[carWash.washerId] ??
+        Washer(
+          id: carWash.washerId,
+          name: 'Unknown Washer',
           phone: '',
           percentage: 0,
           isActive: false,
           createdAt: DateTime.now(),
-        ),
-      );
+        );
+
+    final participantNames = carWash.participantWasherIds.map((id) {
+      final washer = washersById[id] ??
+          Washer(
+            id: id,
+            name: 'Unknown',
+            phone: '',
+            percentage: 0,
+            isActive: false,
+            createdAt: DateTime.now(),
+          );
       return washer.name;
     }).toList();
 
-    final commission = carWash.amount * (responsibleWasher.percentage / 100);
+    // Calculate commission if not provided
+    final washerCommission = commission ??
+        CommissionCalculator.calculateWasherCommission(
+          carWash: carWash,
+          washerId: currentWasherId,
+          washersById: washersById,
+        );
+
+    // Determine if current washer was main or helper
+    final isMainWasher = carWash.washerId == currentWasherId;
+    final isHelper = carWash.participantWasherIds.contains(currentWasherId);
+    final role = isMainWasher
+        ? 'Main'
+        : isHelper
+            ? 'Helper'
+            : 'Unknown';
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 4, horizontal: 4),
@@ -712,14 +804,26 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         visualDensity: VisualDensity.compact,
         leading: Container(
           width: 32,
-          child: Icon(
-            _getVehicleIcon(carWash.vehicleType),
-            color: Colors.blue,
-            size: 20,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _getVehicleIcon(carWash.vehicleType),
+                color: Colors.blue,
+                size: 20,
+              ),
+              Text(
+                role[0],
+                style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: role == 'Main' ? Colors.green : Colors.orange),
+              ),
+            ],
           ),
         ),
         title: Text(
-          carWash.vehicleType,
+          '${carWash.vehicleType} - ETB ${carWash.amount.toStringAsFixed(0)}',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -728,7 +832,7 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Washer: ${responsibleWasher.name}',
+              'Main: ${responsibleWasher.name} (${responsibleWasher.percentage}%)',
               style: TextStyle(fontSize: 11),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -756,30 +860,30 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
             if (carWash.notes != null && carWash.notes!.isNotEmpty)
               Text(
                 'Note: ${carWash.notes!}',
-                style: TextStyle(fontSize: 10),
+                style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
           ],
         ),
         trailing: Container(
-          width: 60,
+          width: 70,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'ETB ${commission.toStringAsFixed(0)}',
+                'ETB ${washerCommission.toStringAsFixed(0)}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.orange,
-                  fontSize: 9,
+                  fontSize: 10,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                '${responsibleWasher.percentage}%',
+                'My Share',
                 style: TextStyle(
                   fontSize: 8,
                   color: Colors.grey,
@@ -868,6 +972,8 @@ class _WasherReportsScreenState extends State<WasherReportsScreen> {
         return Icons.local_shipping;
       case 'motorcycle':
         return Icons.motorcycle;
+      case 'bajaj':
+        return Icons.moped;
       default:
         return Icons.directions_car;
     }
@@ -880,6 +986,7 @@ class WasherReport {
   double totalRevenue;
   double commission;
   int vehicleCount;
+  Map<String, double> commissionDetails; // Car wash ID -> commission
 
   WasherReport({
     required this.washer,
@@ -887,5 +994,6 @@ class WasherReport {
     required this.totalRevenue,
     required this.commission,
     required this.vehicleCount,
+    required this.commissionDetails,
   });
 }

@@ -136,20 +136,34 @@ class FirebaseService {
   }
 
   Stream<List<CarWash>> getCarWashesByWasherAndDateRange(
-      String washerId, DateTime start, DateTime end) {
+    String washerId,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
+    final adjustedEndDate = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+    );
+
     return _firestore
         .collection('car_washes')
-        .where('washerId', isEqualTo: washerId)
-        .orderBy('date', descending: true) // Use single field ordering
+        .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-      // Filter by date manually in memory
       final allCarWashes =
           snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList();
 
+      // Filter by date AND washer in memory
       return allCarWashes.where((carWash) {
-        return carWash.date.isAfter(start.subtract(Duration(seconds: 1))) &&
-            carWash.date.isBefore(end.add(Duration(days: 1)));
+        final isInDateRange = !carWash.date.isBefore(startDate) &&
+            !carWash.date.isAfter(adjustedEndDate);
+        final isWasherInvolved = carWash.washerId == washerId ||
+            carWash.participantWasherIds.contains(washerId);
+        return isInDateRange && isWasherInvolved;
       }).toList();
     });
   }
@@ -177,20 +191,25 @@ class FirebaseService {
             snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList());
   }
 
-  Stream<List<CarWash>> getCarWashesByDateRange(DateTime start, DateTime end) {
+  Stream<List<CarWash>> getCarWashesByDateRange(
+      DateTime startDate, DateTime endDate) {
+    final adjustedEndDate = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+    );
+
     return _firestore
         .collection('car_washes')
-        .orderBy('date', descending: true) // Single field ordering
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(adjustedEndDate))
+        .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-      // Filter by date manually in memory
-      final allCarWashes =
-          snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList();
-
-      return allCarWashes.where((carWash) {
-        return carWash.date.isAfter(start.subtract(Duration(seconds: 1))) &&
-            carWash.date.isBefore(end.add(Duration(days: 1)));
-      }).toList();
+      return snapshot.docs.map((doc) => CarWash.fromMap(doc.data())).toList();
     });
   }
 
